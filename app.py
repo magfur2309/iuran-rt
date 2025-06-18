@@ -38,16 +38,51 @@ if 'login' not in st.session_state:
 
 if not st.session_state.login:
     st.set_page_config(page_title="Iuran Kas RT", layout="wide")
-    st.title("🔐 Login Iuran Kas RT")
+
+    # --- CSS Custom untuk Login ---
+    st.markdown("""
+        <style>
+        body {
+            background-color: #111827;
+        }
+        .stApp {
+            background-color: #111827;
+            color: white;
+        }
+        .login-container {
+            margin-top: 100px;
+            text-align: center;
+        }
+        .login-box {
+            background-color: #1f2937;
+            padding: 40px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 400px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        </style>
+        <div class="login-container">
+            <div class="login-box">
+                <h1 style='color:white;'><span style='font-size: 1.5em;'>🔐</span> Login Iuran Kas RT</h1>
+        """, unsafe_allow_html=True)
+
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
-    if st.button("Login"):
+
+    login_clicked = st.button("Login")
+
+    if login_clicked:
         if username in users and password == users[username]['password']:
             st.session_state.login = True
             st.session_state.username = username
             st.session_state.role = users[username]['role']
+            st.rerun()
         else:
             st.error("Username atau password salah.")
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
     st.stop()
 
 # --- Sidebar Styling & Menu ---
