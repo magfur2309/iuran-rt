@@ -5,12 +5,12 @@ import calendar
 from datetime import datetime
 import os
 
---- FILE PATH ---
+#--- FILE PATH ---
 FILE_WARGA = "warga.csv"
 FILE_IURAN = "iuran_masuk.csv"
 FILE_PENGELUARAN = "pengeluaran.csv"
 
---- SETUP DATA ---
+#--- SETUP DATA ---
 def load_csv(file_path, columns):
 if os.path.exists(file_path):
 return pd.read_csv(file_path)
@@ -21,11 +21,11 @@ df_warga = load_csv(FILE_WARGA, ["ID", "Nama"])
 df_masuk = load_csv(FILE_IURAN, ["ID", "Nama", "Tanggal", "Jumlah", "Kategori"])
 df_keluar = load_csv(FILE_PENGELUARAN, ["ID", "Tanggal", "Jumlah", "Deskripsi"])
 
---- SIMPAN DATA ---
+#--- SIMPAN DATA ---
 def save_csv(df, file_path):
 df.to_csv(file_path, index=False)
 
---- LOGIN USER ---
+#--- LOGIN USER ---
 users = {
 "admin": {"password": "admin123", "role": "admin"},
 "warga1": {"password": "warga123", "role": "warga"},
