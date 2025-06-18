@@ -41,11 +41,13 @@ menu = st.sidebar.radio("Pilih Halaman", [
     "Rekap & Grafik"
 ])
 
+# ... (IMPORT DAN SETUP FILE SAMA SEPERTI SEBELUMNYA)
+
 # --- Tambah Iuran
 if menu == "Tambah Iuran":
     st.header("💰 Tambah Iuran Warga")
     nama = st.selectbox("Nama Warga", df_warga["Nama"])
-    kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang"])
+    kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
     jumlah = st.number_input("Jumlah (Rp)", min_value=0)
     tanggal = st.date_input("Tanggal", datetime.today())
 
@@ -57,76 +59,7 @@ if menu == "Tambah Iuran":
         save_csv(df_masuk, FILE_MASUK)
         st.success("✅ Iuran berhasil ditambahkan.")
 
-# --- Tambah Pengeluaran
-elif menu == "Tambah Pengeluaran":
-    st.header("💸 Tambah Pengeluaran RT")
-    keterangan = st.text_input("Keterangan")
-    jumlah = st.number_input("Jumlah (Rp)", min_value=0)
-    tanggal = st.date_input("Tanggal", datetime.today())
-
-    if st.button("Simpan Pengeluaran"):
-        new_id = str(int(df_keluar["ID"].max()) + 1) if not df_keluar.empty else "1"
-        new_row = pd.DataFrame([[new_id, keterangan, tanggal, jumlah]],
-                               columns=["ID", "Keterangan", "Tanggal", "Jumlah"])
-        df_keluar = pd.concat([df_keluar, new_row], ignore_index=True)
-        save_csv(df_keluar, FILE_KELUAR)
-        st.success("✅ Pengeluaran berhasil ditambahkan.")
-
-# --- Lihat & Kelola Data
-elif menu == "Lihat & Kelola Data":
-    st.header("🛠 Kelola Data Iuran dan Pengeluaran")
-
-    st.subheader("📥 Iuran Masuk")
-    df_masuk["Tanggal"] = pd.to_datetime(df_masuk["Tanggal"])
-    nama_filter = st.selectbox("Filter Nama", ["Semua"] + df_warga["Nama"].tolist())
-    bulan_filter = st.selectbox("Filter Bulan", ["Semua"] + list(calendar.month_name)[1:])
-    
-    df_filter = df_masuk.copy()
-    if nama_filter != "Semua":
-        df_filter = df_filter[df_filter["Nama"] == nama_filter]
-    if bulan_filter != "Semua":
-        month_num = list(calendar.month_name).index(bulan_filter)
-        df_filter = df_filter[df_filter["Tanggal"].dt.month == month_num]
-
-    st.dataframe(df_filter)
-
-    if st.checkbox("✏️ Edit/Hapus Data Iuran"):
-        edit_idx = st.number_input("Baris ke berapa yang ingin diedit/dihapus?", min_value=0, max_value=len(df_masuk)-1)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📝 Edit Data"):
-                df_masuk.at[edit_idx, "Nama"] = st.text_input("Nama", df_masuk.iloc[edit_idx]["Nama"])
-                df_masuk.at[edit_idx, "Kategori"] = st.text_input("Kategori", df_masuk.iloc[edit_idx]["Kategori"])
-                df_masuk.at[edit_idx, "Jumlah"] = st.number_input("Jumlah", value=float(df_masuk.iloc[edit_idx]["Jumlah"]))
-                df_masuk.at[edit_idx, "Tanggal"] = st.date_input("Tanggal", df_masuk.iloc[edit_idx]["Tanggal"])
-                save_csv(df_masuk, FILE_MASUK)
-                st.success("✅ Data berhasil diupdate.")
-        with col2:
-            if st.button("🗑 Hapus Data"):
-                df_masuk.drop(index=edit_idx, inplace=True)
-                save_csv(df_masuk, FILE_MASUK)
-                st.success("🗑 Data berhasil dihapus.")
-
-    st.subheader("📤 Pengeluaran")
-    st.dataframe(df_keluar)
-
-    if st.checkbox("✏️ Edit/Hapus Data Pengeluaran"):
-        edit_idx = st.number_input("Baris ke berapa dari pengeluaran?", min_value=0, max_value=len(df_keluar)-1)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📝 Edit Pengeluaran"):
-                df_keluar.at[edit_idx, "Keterangan"] = st.text_input("Keterangan", df_keluar.iloc[edit_idx]["Keterangan"])
-                df_keluar.at[edit_idx, "Jumlah"] = st.number_input("Jumlah", value=float(df_keluar.iloc[edit_idx]["Jumlah"]))
-                df_keluar.at[edit_idx, "Tanggal"] = st.date_input("Tanggal", df_keluar.iloc[edit_idx]["Tanggal"])
-                save_csv(df_keluar, FILE_KELUAR)
-                st.success("✅ Pengeluaran berhasil diupdate.")
-        with col2:
-            if st.button("🗑 Hapus Pengeluaran"):
-                df_keluar.drop(index=edit_idx, inplace=True)
-                save_csv(df_keluar, FILE_KELUAR)
-                st.success("🗑 Data pengeluaran berhasil dihapus.")
-
-# --- Laporan Status Iuran
+# --- Laporan Status Iuran (DIPERBARUI)
 elif menu == "Laporan Status Iuran":
     st.header("📑 Status Iuran Per Warga")
     bulan = st.selectbox("Pilih Bulan", range(1, 13), format_func=lambda x: calendar.month_name[x])
@@ -139,12 +72,20 @@ elif menu == "Laporan Status Iuran":
     kategori_list = ["Iuran Pokok", "Iuran Kas Gang"]
     laporan = pd.DataFrame({"Nama": df_warga["Nama"]})
 
+    def cek_status(nama, kategori):
+        # Jika bayar gabungan, otomatis dianggap lunas semua
+        bayar_gabungan = not df_filtered[(df_filtered["Nama"] == nama) & (df_filtered["Kategori"] == "Iuran Pokok+Kas Gang")].empty
+        if bayar_gabungan:
+            return "Lunas"
+        # Cek apakah bayar kategori terpisah
+        bayar_kategori = not df_filtered[(df_filtered["Nama"] == nama) & (df_filtered["Kategori"] == kategori)].empty
+        return "Lunas" if bayar_kategori else "Belum Lunas"
+
     for kategori in kategori_list:
-        laporan[kategori] = laporan["Nama"].apply(
-            lambda nama: "Lunas" if not df_filtered[(df_filtered["Nama"] == nama) & (df_filtered["Kategori"] == kategori)].empty else "Belum Lunas"
-        )
+        laporan[kategori] = laporan["Nama"].apply(lambda nama: cek_status(nama, kategori))
 
     st.dataframe(laporan)
+
 
 # --- Grafik Interaktif
 elif menu == "Rekap & Grafik":
