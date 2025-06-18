@@ -1,3 +1,10 @@
+import streamlit as st
+import pandas as pd
+import hashlib
+import calendar
+from datetime import datetime
+import os
+
 role = st.session_state.role
 
 # Menu tidak pakai sidebar, tapi dropdown biasa
