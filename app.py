@@ -37,6 +37,7 @@ if 'login' not in st.session_state:
     st.session_state.role = ''
 
 if not st.session_state.login:
+    st.set_page_config(page_title="Iuran Kas RT", layout="wide")
     st.title("🔐 Login Iuran Kas RT")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -49,23 +50,32 @@ if not st.session_state.login:
             st.error("Username atau password salah.")
     st.stop()
 
-# --- Sidebar ---
-st.sidebar.write(f"👤 Login sebagai: `{st.session_state.username}` ({st.session_state.role})")
-if st.sidebar.button("Logout"):
-    st.session_state.login = False
-    st.session_state.username = ''
-    st.session_state.role = ''
-    st.rerun()
-
-role = st.session_state.role
-if role == 'admin':
-    menu = st.sidebar.radio("Menu", [
-        "Dashboard", "Tambah Iuran", "Lihat Iuran", 
-        "Tambah Pengeluaran", "Lihat Pengeluaran",
-        "Laporan Status Iuran", "Export Excel"
-    ])
-else:
-    menu = st.sidebar.radio("Menu", ["Dashboard", "Laporan Status Iuran"])
+# --- Sidebar Styling & Menu ---
+with st.sidebar:
+    st.markdown(
+        f"""
+        <div style="padding: 10px; border-radius: 10px; background-color: #1f2937; color: white;">
+            👤 <b>Login sebagai:</b><br>{st.session_state.username} ({st.session_state.role})
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
+    role = st.session_state.role
+    if role == 'admin':
+        menu = st.radio("📋 Menu Utama", [
+            "Dashboard", "Tambah Iuran", "Lihat Iuran", 
+            "Tambah Pengeluaran", "Lihat Pengeluaran",
+            "Laporan Status Iuran", "Export Excel"
+        ])
+    else:
+        menu = st.radio("📋 Menu Warga", ["Dashboard", "Laporan Status Iuran"])
+    st.markdown("---")
+    if st.button("🚪 Logout"):
+        st.session_state.login = False
+        st.session_state.username = ''
+        st.session_state.role = ''
+        st.rerun()
 
 # --- Dashboard ---
 if menu == "Dashboard":
@@ -88,11 +98,12 @@ if menu == "Dashboard":
 
     masuk_bulanan = df_iuran.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pemasukan")
     keluar_bulanan = df_keluar.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pengeluaran")
-    df_grafik = pd.merge(masuk_bulanan, keluar_bulanan, on="Bulan", how="outer").fillna(0).melt(id_vars=["Bulan"], var_name="Tipe", value_name="Jumlah")
+    df_grafik = pd.merge(masuk_bulanan, keluar_bulanan, on="Bulan", how="outer").fillna(0).melt(
+        id_vars=["Bulan"], var_name="Tipe", value_name="Jumlah")
 
     chart = alt.Chart(df_grafik).mark_bar().encode(
-        x=alt.X("Bulan:O"),
-        y=alt.Y("Jumlah:Q"),
+        x=alt.X("Bulan:O", title="Bulan"),
+        y=alt.Y("Jumlah:Q", title="Jumlah (Rp)"),
         color=alt.Color("Tipe:N", scale=alt.Scale(range=["#4CAF50", "#F44336"])),
         tooltip=["Bulan", "Tipe", "Jumlah"]
     ).properties(width="container", title="📈 Grafik Kas Per Bulan")
@@ -124,7 +135,7 @@ if menu == "Tambah Iuran" and role == "admin":
         }
         df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
         save_csv(df_iuran, FILE_IURAN)
-        st.success("Data iuran berhasil disimpan!")
+        st.success("✅ Data iuran berhasil disimpan!")
 
 # --- Lihat Iuran ---
 if menu == "Lihat Iuran" and role == "admin":
@@ -148,7 +159,7 @@ if menu == "Tambah Pengeluaran" and role == "admin":
         }
         df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
         save_csv(df_keluar, FILE_PENGELUARAN)
-        st.success("Data pengeluaran berhasil disimpan!")
+        st.success("✅ Data pengeluaran berhasil disimpan!")
 
 # --- Lihat Pengeluaran ---
 if menu == "Lihat Pengeluaran" and role == "admin":
