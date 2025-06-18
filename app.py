@@ -38,6 +38,7 @@ if 'login' not in st.session_state:
     st.session_state.role = ''
 
 if not st.session_state.login:
+    # --- Form Login ---
     st.title("🔐 Login Aplikasi Iuran Kas RT")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -46,6 +47,7 @@ if not st.session_state.login:
             st.session_state.login = True
             st.session_state.username = username
             st.session_state.role = users[username]['role']
+            st.rerun()
         else:
             st.error("Username atau password salah.")
 else:
@@ -54,15 +56,13 @@ else:
         for key in ["login", "username", "role"]:
             if key in st.session_state:
                 del st.session_state[key]
-        st.experimental_rerun()
+        st.success("✅ Logout berhasil. Silakan login kembali.")
+        st.rerun()
 
-    role = st.session_state.role
-
-# --- MENU ---
+    # ✅ Menu hanya dibuat setelah role ada
     if "role" in st.session_state:
         role = st.session_state.role
-
-        if role == 'admin':
+        if role == "admin":
             menu = st.sidebar.radio("Menu", [
                 "Dashboard", "Tambah Iuran", "Lihat & Kelola Iuran",
                 "Tambah Pengeluaran", "Lihat & Kelola Pengeluaran",
@@ -71,7 +71,13 @@ else:
             menu = st.sidebar.radio("Menu", [
                 "Dashboard", "Laporan Status Iuran", "Lihat Pengeluaran", "Grafik Keuangan"])
     else:
-        st.error("Sesi belum valid. Silakan login ulang.")
+        st.error("Gagal memuat role. Silakan login ulang.")
+        st.stop()  # Stop agar tidak memproses lebih lanjut
+
+    # ✅ Hanya dijalankan jika menu sudah terdefinisi
+    if menu == "Dashboard":
+        st.header("🏠 Dashboard Kas RT")
+        # ... lanjutkan isi dashboard
 
 # --- DASHBOARD ---
 def tampilkan_dashboard(df_masuk, df_keluar, role):
