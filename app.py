@@ -1,124 +1,198 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import hashlib
+import calendar
 from datetime import datetime
 import os
-import calendar
 
-# --- File Path
+# --- FILE PATH ---
 FILE_WARGA = "warga.csv"
-FILE_MASUK = "kas_masuk.csv"
-FILE_KELUAR = "kas_keluar.csv"
+FILE_IURAN = "iuran_masuk.csv"
+FILE_PENGELUARAN = "pengeluaran.csv"
 
-# --- Setup File Awal
-def init_file(file, columns):
-    if not os.path.exists(file):
-        pd.DataFrame(columns=columns).to_csv(file, index=False)
-
-def load_csv(file):
-    return pd.read_csv(file)
-
-def save_csv(df, file):
-    df.to_csv(file, index=False)
-
-# --- Inisialisasi
-init_file(FILE_WARGA, ["Nama"])
-init_file(FILE_MASUK, ["ID", "Nama", "Tanggal", "Jumlah", "Kategori"])
-init_file(FILE_KELUAR, ["ID", "Keterangan", "Tanggal", "Jumlah"])
-
-# --- Load Data
-df_warga = load_csv(FILE_WARGA)
-df_masuk = load_csv(FILE_MASUK)
-df_keluar = load_csv(FILE_KELUAR)
-
-# --- Sidebar Menu
-st.sidebar.title("📋 Menu")
-menu = st.sidebar.radio("Pilih Halaman", [
-    "Tambah Iuran",
-    "Tambah Pengeluaran",
-    "Lihat & Kelola Data",
-    "Laporan Status Iuran",
-    "Rekap & Grafik"
-])
-
-# ... (IMPORT DAN SETUP FILE SAMA SEPERTI SEBELUMNYA)
-
-# --- Tambah Iuran
-if menu == "Tambah Iuran":
-    st.header("💰 Tambah Iuran Warga")
-    nama = st.selectbox("Nama Warga", df_warga["Nama"])
-
-    kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
-
-    # Set jumlah default berdasarkan kategori
-    if kategori == "Iuran Pokok":
-        default_jumlah = 35000
-    elif kategori == "Iuran Kas Gang":
-        default_jumlah = 15000
+# --- SETUP DATA ---
+def load_csv(file_path, columns):
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
     else:
-        default_jumlah = 35000 + 15000
+        return pd.DataFrame(columns=columns)
 
-    jumlah = st.number_input("Jumlah (Rp)", min_value=0, value=default_jumlah)
-    tanggal = st.date_input("Tanggal", datetime.today())
+df_warga = load_csv(FILE_WARGA, ["ID", "Nama"])
+df_masuk = load_csv(FILE_IURAN, ["ID", "Nama", "Tanggal", "Jumlah", "Kategori"])
+df_keluar = load_csv(FILE_PENGELUARAN, ["ID", "Tanggal", "Jumlah", "Deskripsi"])
 
-    if st.button("Simpan Iuran"):
-        new_id = str(int(df_masuk["ID"].max()) + 1) if not df_masuk.empty else "1"
-        new_row = pd.DataFrame([[new_id, nama, tanggal, jumlah, kategori]],
-                               columns=["ID", "Nama", "Tanggal", "Jumlah", "Kategori"])
-        df_masuk = pd.concat([df_masuk, new_row], ignore_index=True)
-        save_csv(df_masuk, FILE_MASUK)
-        st.success("✅ Iuran berhasil ditambahkan.")
+# --- SIMPAN ---
+def save_csv(df, file_path):
+    df.to_csv(file_path, index=False)
 
+# --- USER LOGIN ---
+users = {
+    "admin": {"password": "admin123", "role": "admin"},
+    "warga1": {"password": "warga123", "role": "warga"},
+    "warga2": {"password": "warga123", "role": "warga"},
+}
 
-# --- Laporan Status Iuran (DIPERBARUI)
-elif menu == "Laporan Status Iuran":
-    st.header("📑 Status Iuran Per Warga")
-    bulan = st.selectbox("Pilih Bulan", range(1, 13), format_func=lambda x: calendar.month_name[x])
-    tahun = st.number_input("Tahun", value=datetime.today().year)
+if 'login' not in st.session_state:
+    st.session_state.login = False
+    st.session_state.username = ''
+    st.session_state.role = ''
 
-    df_masuk["Tanggal"] = pd.to_datetime(df_masuk["Tanggal"])
-    df_filtered = df_masuk[(df_masuk["Tanggal"].dt.month == bulan) &
-                           (df_masuk["Tanggal"].dt.year == tahun)]
+if not st.session_state.login:
+    st.title("🔐 Login Aplikasi Iuran Kas RT")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username in users and password == users[username]['password']:
+            st.session_state.login = True
+            st.session_state.username = username
+            st.session_state.role = users[username]['role']
+            st.experimental_rerun()
+        else:
+            st.error("Username atau password salah.")
+else:
+    st.sidebar.write(f"👤 Login sebagai: `{st.session_state.username}` ({st.session_state.role})")
+    if st.sidebar.button("Logout"):
+        st.session_state.login = False
+        st.session_state.username = ''
+        st.session_state.role = ''
+        st.experimental_rerun()
 
-    kategori_list = ["Iuran Pokok", "Iuran Kas Gang"]
-    laporan = pd.DataFrame({"Nama": df_warga["Nama"]})
+    role = st.session_state.role
+    if role == 'admin':
+        menu = st.sidebar.radio("Menu", [
+            "Tambah Iuran", "Lihat & Kelola Iuran",
+            "Tambah Pengeluaran", "Lihat & Kelola Pengeluaran",
+            "Rekap & Grafik", "Export Excel", "Laporan Status Iuran"])
+    else:
+        menu = st.sidebar.radio("Menu", ["Laporan Status Iuran"])
 
-    def cek_status(nama, kategori):
-        # Jika bayar gabungan, otomatis dianggap lunas semua
-        bayar_gabungan = not df_filtered[(df_filtered["Nama"] == nama) & (df_filtered["Kategori"] == "Iuran Pokok+Kas Gang")].empty
-        if bayar_gabungan:
-            return "Lunas"
-        # Cek apakah bayar kategori terpisah
-        bayar_kategori = not df_filtered[(df_filtered["Nama"] == nama) & (df_filtered["Kategori"] == kategori)].empty
-        return "Lunas" if bayar_kategori else "Belum Lunas"
+    if menu == "Tambah Iuran":
+        st.header("💰 Tambah Iuran Warga")
+        nama = st.selectbox("Nama Warga", df_warga["Nama"])
+        kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
 
-    for kategori in kategori_list:
-        laporan[kategori] = laporan["Nama"].apply(lambda nama: cek_status(nama, kategori))
+        if kategori == "Iuran Pokok":
+            default_jumlah = 35000
+        elif kategori == "Iuran Kas Gang":
+            default_jumlah = 15000
+        else:
+            default_jumlah = 50000
 
-    st.dataframe(laporan)
+        jumlah = st.number_input("Jumlah (Rp)", min_value=0, value=default_jumlah)
+        tanggal = st.date_input("Tanggal", datetime.today())
 
+        if st.button("Simpan Iuran"):
+            new_id = str(int(df_masuk["ID"].max()) + 1) if not df_masuk.empty else "1"
+            new_row = pd.DataFrame([[new_id, nama, tanggal, jumlah, kategori]],
+                                   columns=["ID", "Nama", "Tanggal", "Jumlah", "Kategori"])
+            df_masuk = pd.concat([df_masuk, new_row], ignore_index=True)
+            save_csv(df_masuk, FILE_IURAN)
+            st.success("✅ Iuran berhasil ditambahkan.")
 
-# --- Grafik Interaktif
-elif menu == "Rekap & Grafik":
-    st.header("📊 Grafik Kas RT")
+    elif menu == "Lihat & Kelola Iuran":
+        st.header("📄 Data Iuran Masuk")
+        st.dataframe(df_masuk)
 
-    df_masuk["Tanggal"] = pd.to_datetime(df_masuk["Tanggal"])
-    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"])
+        if st.checkbox("Aktifkan Edit/Hapus"):
+            row_id = st.text_input("Masukkan ID untuk Edit atau Hapus:")
+            if row_id:
+                edit_data = df_masuk[df_masuk["ID"] == row_id]
+                if not edit_data.empty:
+                    nama = st.selectbox("Nama", df_warga["Nama"], index=df_warga[df_warga["Nama"] == edit_data.iloc[0]["Nama"]].index[0])
+                    kategori = st.selectbox("Kategori", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"],
+                                            index=["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"].index(edit_data.iloc[0]["Kategori"]))
+                    jumlah = st.number_input("Jumlah", value=int(edit_data.iloc[0]["Jumlah"]))
+                    tanggal = st.date_input("Tanggal", pd.to_datetime(edit_data.iloc[0]["Tanggal"]))
+                    if st.button("Update"):
+                        df_masuk.loc[df_masuk["ID"] == row_id, ["Nama", "Tanggal", "Jumlah", "Kategori"]] = [nama, tanggal, jumlah, kategori]
+                        save_csv(df_masuk, FILE_IURAN)
+                        st.success("✅ Data diperbarui.")
+                    if st.button("Hapus"):
+                        df_masuk = df_masuk[df_masuk["ID"] != row_id]
+                        save_csv(df_masuk, FILE_IURAN)
+                        st.success("🗑️ Data dihapus.")
 
-    # Rekap Bulanan
-    df_masuk["Bulan"] = df_masuk["Tanggal"].dt.strftime("%Y-%m")
-    df_keluar["Bulan"] = df_keluar["Tanggal"].dt.strftime("%Y-%m")
+    elif menu == "Tambah Pengeluaran":
+        st.header("💸 Tambah Pengeluaran")
+        tanggal = st.date_input("Tanggal", datetime.today())
+        jumlah = st.number_input("Jumlah (Rp)", min_value=0)
+        deskripsi = st.text_input("Deskripsi")
+        if st.button("Simpan Pengeluaran"):
+            new_id = str(int(df_keluar["ID"].max()) + 1) if not df_keluar.empty else "1"
+            new_row = pd.DataFrame([[new_id, tanggal, jumlah, deskripsi]],
+                                   columns=["ID", "Tanggal", "Jumlah", "Deskripsi"])
+            df_keluar = pd.concat([df_keluar, new_row], ignore_index=True)
+            save_csv(df_keluar, FILE_PENGELUARAN)
+            st.success("✅ Pengeluaran berhasil ditambahkan.")
 
-    total_masuk = df_masuk.groupby("Bulan")["Jumlah"].sum().reset_index(name="Iuran Masuk")
-    total_keluar = df_keluar.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pengeluaran")
+    elif menu == "Lihat & Kelola Pengeluaran":
+        st.header("📄 Data Pengeluaran")
+        st.dataframe(df_keluar)
 
-    df_merge = pd.merge(total_masuk, total_keluar, on="Bulan", how="outer").fillna(0)
-    df_merge["Saldo"] = df_merge["Iuran Masuk"] - df_merge["Pengeluaran"]
+        if st.checkbox("Aktifkan Edit/Hapus"):
+            row_id = st.text_input("Masukkan ID untuk Edit atau Hapus:")
+            if row_id:
+                edit_data = df_keluar[df_keluar["ID"] == row_id]
+                if not edit_data.empty:
+                    tanggal = st.date_input("Tanggal", pd.to_datetime(edit_data.iloc[0]["Tanggal"]))
+                    jumlah = st.number_input("Jumlah", value=int(edit_data.iloc[0]["Jumlah"]))
+                    deskripsi = st.text_input("Deskripsi", value=edit_data.iloc[0]["Deskripsi"])
+                    if st.button("Update"):
+                        df_keluar.loc[df_keluar["ID"] == row_id, ["Tanggal", "Jumlah", "Deskripsi"]] = [tanggal, jumlah, deskripsi]
+                        save_csv(df_keluar, FILE_PENGELUARAN)
+                        st.success("✅ Data diperbarui.")
+                    if st.button("Hapus"):
+                        df_keluar = df_keluar[df_keluar["ID"] != row_id]
+                        save_csv(df_keluar, FILE_PENGELUARAN)
+                        st.success("🗑️ Data dihapus.")
 
-    fig = px.line(df_merge, x="Bulan", y=["Iuran Masuk", "Pengeluaran", "Saldo"],
-                  markers=True, title="Grafik Kas Bulanan")
-    st.plotly_chart(fig, use_container_width=True)
+    elif menu == "Rekap & Grafik":
+        st.header("📊 Grafik Keuangan")
+        df_masuk["Tanggal"] = pd.to_datetime(df_masuk["Tanggal"])
+        df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"])
 
-    st.metric("Total Masuk", f"Rp {df_masuk['Jumlah'].sum():,.0f}")
-    st.metric("Total Keluar", f"Rp {df_keluar['Jumlah'].sum():,.0f}")
-    st.metric("Saldo Akhir", f"Rp {df_masuk['Jumlah'].sum() - df_keluar['Jumlah'].sum():,.0f}")
+        df_masuk['Bulan'] = df_masuk['Tanggal'].dt.to_period('M')
+        df_keluar['Bulan'] = df_keluar['Tanggal'].dt.to_period('M')
+
+        pemasukan_per_bulan = df_masuk.groupby('Bulan')['Jumlah'].sum()
+        pengeluaran_per_bulan = df_keluar.groupby('Bulan')['Jumlah'].sum()
+
+        df_gabungan = pd.DataFrame({
+            'Pemasukan': pemasukan_per_bulan,
+            'Pengeluaran': pengeluaran_per_bulan
+        }).fillna(0)
+
+        st.bar_chart(df_gabungan)
+
+    elif menu == "Export Excel":
+        st.header("📤 Export Data ke Excel")
+        with pd.ExcelWriter("data_iuran_export.xlsx") as writer:
+            df_warga.to_excel(writer, sheet_name="Warga", index=False)
+            df_masuk.to_excel(writer, sheet_name="Iuran", index=False)
+            df_keluar.to_excel(writer, sheet_name="Pengeluaran", index=False)
+        with open("data_iuran_export.xlsx", "rb") as f:
+            st.download_button("Download Excel", f, file_name="laporan_kas_rt.xlsx")
+
+    elif menu == "Laporan Status Iuran":
+        st.header("📑 Status Iuran Per Warga")
+        bulan = st.selectbox("Pilih Bulan", list(calendar.month_name)[1:], index=datetime.today().month - 1)
+        tahun = st.selectbox("Pilih Tahun", list(range(2020, datetime.today().year + 1)), index=5)
+
+        bulan_num = list(calendar.month_name).index(bulan)
+        df_masuk["Tanggal"] = pd.to_datetime(df_masuk["Tanggal"])
+        df_filtered = df_masuk[(df_masuk["Tanggal"].dt.month == bulan_num) & (df_masuk["Tanggal"].dt.year == tahun)]
+
+        kategori_list = ["Iuran Pokok", "Iuran Kas Gang"]
+        laporan = pd.DataFrame({"Nama": df_warga["Nama"]})
+
+        def cek_status(nama, kategori):
+            gabung = df_filtered[(df_filtered["Nama"] == nama) & (df_filtered["Kategori"] == "Iuran Pokok+Kas Gang")]
+            if not gabung.empty:
+                return "Lunas"
+            bayar = df_filtered[(df_filtered["Nama"] == nama) & (df_filtered["Kategori"] == kategori)]
+            return "Lunas" if not bayar.empty else "Belum Lunas"
+
+        for kategori in kategori_list:
+            laporan[kategori] = laporan["Nama"].apply(lambda nama: cek_status(nama, kategori))
+
+        st.dataframe(laporan)
