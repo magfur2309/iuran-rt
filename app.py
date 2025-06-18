@@ -59,13 +59,19 @@ else:
     role = st.session_state.role
 
 # --- MENU ---
-if role == "admin":
-    menu = st.sidebar.radio("Menu", [
-        "Dashboard", "Tambah Iuran", "Lihat & Kelola Iuran",
-        "Tambah Pengeluaran", "Lihat & Kelola Pengeluaran",
-        "Rekap & Grafik", "Export Excel", "Laporan Status Iuran"])
-else:
-    menu = st.sidebar.radio("Menu", ["Dashboard", "Laporan Status Iuran", "Lihat Pengeluaran", "Grafik Keuangan"])
+    if "role" in st.session_state:
+        role = st.session_state.role
+
+        if role == 'admin':
+            menu = st.sidebar.radio("Menu", [
+                "Dashboard", "Tambah Iuran", "Lihat & Kelola Iuran",
+                "Tambah Pengeluaran", "Lihat & Kelola Pengeluaran",
+                "Rekap & Grafik", "Export Excel", "Laporan Status Iuran"])
+        else:
+            menu = st.sidebar.radio("Menu", [
+                "Dashboard", "Laporan Status Iuran", "Lihat Pengeluaran", "Grafik Keuangan"])
+    else:
+        st.error("Sesi belum valid. Silakan login ulang.")
 
 # --- DASHBOARD ---
 def tampilkan_dashboard(df_masuk, df_keluar, role):
