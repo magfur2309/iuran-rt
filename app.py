@@ -46,7 +46,7 @@ if not st.session_state.login:
             st.session_state.login = True
             st.session_state.username = username
             st.session_state.role = users[username]['role']
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Username atau password salah.")
 else:
@@ -55,7 +55,7 @@ else:
         st.session_state.login = False
         st.session_state.username = ''
         st.session_state.role = ''
-        st.experimental_rerun()
+        st.rerun()
 
     role = st.session_state.role
     if role == 'admin':
