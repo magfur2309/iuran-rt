@@ -47,8 +47,18 @@ menu = st.sidebar.radio("Pilih Halaman", [
 if menu == "Tambah Iuran":
     st.header("💰 Tambah Iuran Warga")
     nama = st.selectbox("Nama Warga", df_warga["Nama"])
+
     kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
-    jumlah = st.number_input("Jumlah (Rp)", min_value=0)
+
+    # Set jumlah default berdasarkan kategori
+    if kategori == "Iuran Pokok":
+        default_jumlah = 35000
+    elif kategori == "Iuran Kas Gang":
+        default_jumlah = 15000
+    else:
+        default_jumlah = 35000 + 15000
+
+    jumlah = st.number_input("Jumlah (Rp)", min_value=0, value=default_jumlah)
     tanggal = st.date_input("Tanggal", datetime.today())
 
     if st.button("Simpan Iuran"):
@@ -58,6 +68,7 @@ if menu == "Tambah Iuran":
         df_masuk = pd.concat([df_masuk, new_row], ignore_index=True)
         save_csv(df_masuk, FILE_MASUK)
         st.success("✅ Iuran berhasil ditambahkan.")
+
 
 # --- Laporan Status Iuran (DIPERBARUI)
 elif menu == "Laporan Status Iuran":
