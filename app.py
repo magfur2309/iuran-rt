@@ -49,8 +49,6 @@ if not st.session_state.login:
             st.experimental_rerun()
         else:
             st.error("Username atau password salah.")
-        # ⛔ Tambahkan ini agar aplikasi berhenti jika belum login
-    st.stop()
 else:
     st.sidebar.write(f"👤 Login sebagai: `{st.session_state.username}` ({st.session_state.role})")
     if st.sidebar.button("Logout"):
