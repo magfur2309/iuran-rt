@@ -35,7 +35,8 @@ users = {
 if 'login' not in st.session_state:
     st.session_state.login = False
     st.session_state.username = ''
-    st.session_state.role = ''
+    role = st.session_state.get("role", "")
+
 
 if not st.session_state.login:
     st.title("🔐 Login Aplikasi Iuran Kas RT")
