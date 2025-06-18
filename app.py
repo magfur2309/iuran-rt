@@ -71,10 +71,13 @@ user = st.session_state["user"]
 df_masuk = load_csv(DATA_MASUK)
 df_keluar = load_csv(DATA_KELUAR)
 
-menu = st.sidebar.selectbox("Menu", [
-    "Tambah Iuran", "Lihat & Kelola Iuran",
-    "Tambah Pengeluaran", "Lihat & Kelola Pengeluaran",
-    "Rekap & Grafik", "Export Excel"
+menu = st.sidebar.radio("Menu", [
+    "Tambah Iuran", 
+    "Lihat & Kelola Iuran",
+    "Tambah Pengeluaran", 
+    "Lihat & Kelola Pengeluaran",
+    "Rekap & Grafik", 
+    "Export Excel"
 ])
 
 # --- INPUT PEMASUKAN
