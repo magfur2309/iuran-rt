@@ -46,16 +46,14 @@ if not st.session_state.login:
             st.session_state.login = True
             st.session_state.username = username
             st.session_state.role = users[username]['role']
-            st.rerun()
         else:
             st.error("Username atau password salah.")
 else:
     st.sidebar.write(f"👤 Login sebagai: `{st.session_state.username}` ({st.session_state.role})")
     if st.sidebar.button("Logout"):
-        st.session_state.login = False
-        st.session_state.username = ''
-        st.session_state.role = ''
-        st.rerun()
+        for key in ["login", "username", "role"]:
+            if key in st.session_state:
+                del st.session_state[key]
 
     role = st.session_state.role
     if role == 'admin':
@@ -64,7 +62,7 @@ else:
             "Tambah Pengeluaran", "Lihat & Kelola Pengeluaran",
             "Rekap & Grafik", "Export Excel", "Laporan Status Iuran"])
     else:
-        menu = st.sidebar.radio("Menu", ["Laporan Status Iuran"])
+        menu = st.sidebar.radio("Menu", ["Laporan Status Iuran", "Lihat Pengeluaran", "Grafik Keuangan"])
 
     if menu == "Tambah Iuran":
         st.header("💰 Tambah Iuran Warga")
@@ -146,7 +144,11 @@ else:
                         save_csv(df_keluar, FILE_PENGELUARAN)
                         st.success("🗑️ Data dihapus.")
 
-    elif menu == "Rekap & Grafik":
+    elif menu == "Lihat Pengeluaran":
+        st.header("📄 Data Pengeluaran")
+        st.dataframe(df_keluar)
+
+    elif menu == "Grafik Keuangan" or menu == "Rekap & Grafik":
         st.header("📊 Grafik Keuangan")
         df_masuk["Tanggal"] = pd.to_datetime(df_masuk["Tanggal"])
         df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"])
