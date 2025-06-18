@@ -35,8 +35,7 @@ users = {
 if 'login' not in st.session_state:
     st.session_state.login = False
     st.session_state.username = ''
-    role = st.session_state.get("role", "")
-
+    st.session_state.role = ''
 
 if not st.session_state.login:
     st.title("🔐 Login Aplikasi Iuran Kas RT")
@@ -55,6 +54,7 @@ else:
         for key in ["login", "username", "role"]:
             if key in st.session_state:
                 del st.session_state[key]
+        st.experimental_rerun()
 
     role = st.session_state.role
     if role == 'admin':
