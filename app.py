@@ -247,10 +247,10 @@ elif menu == "Lihat Iuran" and role == "admin":
         index_nama = nama_list.index(row["Nama"]) if row["Nama"] in nama_list else 0
         nama_edit = st.selectbox("Nama", nama_list, index=index_nama)
         tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce').date())
-        kategori_list = ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang", "Lain-lain"]
-        index_kategori = kategori_list.index(row["Kategori"]) if row["Kategori"] in kategori_list else 0
-        kategori_edit = st.selectbox("Kategori", kategori_list, index=index_kategori)
-        jumlah_edit = st.number_input("Jumlah", min_value=0, value=int(row["Jumlah"]), step=1000)
+        kategori_list = ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"]
+        kategori_edit = st.selectbox("Kategori", kategori_list, index=kategori_list.index(row["Kategori"]))
+
+        jumlah_edit = 35000 if kategori_edit == "Iuran Pokok" else 15000 if kategori_edit == "Iuran Kas Gang" else 50000
 
         if st.button("Simpan Perubahan"):
             df_iuran.loc[df_iuran["ID"] == edit_id, ["Nama", "Tanggal", "Jumlah", "Kategori"]] = [
