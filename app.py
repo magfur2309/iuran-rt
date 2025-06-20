@@ -178,6 +178,37 @@ with st.sidebar:
         st.session_state.username = ''
         st.session_state.role = ''
         st.rerun()
+# --- Tambah Iuran ---
+if menu == "Tambah Iuran" and role == "admin":
+    st.title("➕ Tambah Iuran")
+    nama = st.selectbox("Nama Warga", df_warga["Nama"])
+    tanggal = st.date_input("Tanggal", datetime.today())
+    kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
+
+    if kategori == "Iuran Pokok":
+        jumlah = 35000
+    elif kategori == "Iuran Kas Gang":
+        jumlah = 15000
+    else:
+        jumlah = 50000
+
+    if st.button("Simpan Iuran"):
+        new_id = len(df_iuran) + 1
+        new_row = {
+            "ID": new_id,
+            "Nama": nama,
+            "Tanggal": tanggal,
+            "Jumlah": jumlah,
+            "Kategori": kategori
+        }
+        df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
+        save_csv(df_iuran, FILE_IURAN)
+        st.success("✅ Data iuran berhasil disimpan!")
+
+# --- Lihat Iuran ---
+if menu == "Lihat Iuran" and role == "admin":
+    st.title("📂 Data Iuran Masuk")
+    st.dataframe(df_iuran.sort_values("Tanggal", ascending=False), use_container_width=True)
 
 # --- Halaman Konten Utama ---
 if menu == "Tambah Pengeluaran" and role == "admin":
