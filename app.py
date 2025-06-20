@@ -166,7 +166,9 @@ if menu == "Lihat Iuran" and role == "admin":
     if not df_iuran.empty:
         selected_id = st.selectbox("Pilih ID untuk Edit/Hapus", df_iuran["ID"])
         selected_data = df_iuran[df_iuran["ID"] == selected_id].iloc[0]
-        nama_edit = st.selectbox("Nama", df_warga["Nama"], index=df_warga[df_warga["Nama"] == selected_data["Nama"]].index[0])
+        nama_list = df_warga["Nama"].tolist()
+        index_nama = next((i for i, nama in enumerate(nama_list) if nama == selected_data["Nama"]), 0)
+        nama_edit = st.selectbox("Nama", nama_list, index=index_nama)
         tanggal_edit = st.date_input("Tanggal", pd.to_datetime(selected_data["Tanggal"]))
         kategori_edit = st.selectbox("Kategori", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"], index=["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"].index(selected_data["Kategori"]))
         jumlah_edit = 35000 if kategori_edit == "Iuran Pokok" else 15000 if kategori_edit == "Iuran Kas Gang" else 50000
@@ -182,65 +184,3 @@ if menu == "Lihat Iuran" and role == "admin":
             st.warning("⚠️ Data berhasil dihapus!")
             st.rerun()
     st.dataframe(df_iuran.sort_values("Tanggal", ascending=False), use_container_width=True)
-
-# --- Tambah Pengeluaran ---
-if menu == "Tambah Pengeluaran" and role == "admin":
-    st.title("➖ Tambah Pengeluaran")
-    tanggal = st.date_input("Tanggal", datetime.today())
-    jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000)
-    deskripsi = st.text_input("Deskripsi")
-    if st.button("Simpan Pengeluaran"):
-        if not deskripsi.strip():
-            st.warning("⚠️ Deskripsi tidak boleh kosong!")
-        else:
-            new_id = df_keluar["ID"].max() + 1 if not df_keluar.empty else 1
-            new_row = {"ID": new_id, "Tanggal": tanggal, "Jumlah": jumlah, "Deskripsi": deskripsi}
-            df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
-            save_csv(df_keluar, FILE_PENGELUARAN)
-            st.success("✅ Data pengeluaran berhasil disimpan!")
-
-# --- Lihat Pengeluaran ---
-if menu == "Lihat Pengeluaran" and role == "admin":
-    st.title("📁 Data Pengeluaran")
-    if not df_keluar.empty:
-        selected_id = st.selectbox("Pilih ID untuk Edit/Hapus", df_keluar["ID"])
-        selected_data = df_keluar[df_keluar["ID"] == selected_id].iloc[0]
-        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(selected_data["Tanggal"]))
-        jumlah_edit = st.number_input("Jumlah (Rp)", value=int(selected_data["Jumlah"]), step=1000)
-        deskripsi_edit = st.text_input("Deskripsi", selected_data["Deskripsi"])
-        col1, col2 = st.columns(2)
-        if col1.button("💾 Simpan Perubahan"):
-            df_keluar = edit_row(df_keluar, selected_id, {"Tanggal": tanggal_edit, "Jumlah": jumlah_edit, "Deskripsi": deskripsi_edit})
-            save_csv(df_keluar, FILE_PENGELUARAN)
-            st.success("✅ Data berhasil diperbarui!")
-            st.rerun()
-        if col2.button("🗑️ Hapus Data"):
-            df_keluar = delete_row(df_keluar, selected_id)
-            save_csv(df_keluar, FILE_PENGELUARAN)
-            st.warning("⚠️ Data berhasil dihapus!")
-            st.rerun()
-    st.dataframe(df_keluar.sort_values("Tanggal", ascending=False), use_container_width=True)
-
-# --- Laporan Status Iuran ---
-if menu == "Laporan Status Iuran":
-    st.title("📝 Laporan Status Iuran")
-    df_iuran["Bulan"] = pd.to_datetime(df_iuran["Tanggal"]).dt.to_period("M")
-    bulan_terakhir = df_iuran["Bulan"].max()
-    laporan = []
-    for _, row in df_warga.iterrows():
-        warga = row["Nama"]
-        bayar = df_iuran[(df_iuran["Nama"] == warga) & (df_iuran["Bulan"] == bulan_terakhir)]
-        status = "Lunas" if not bayar.empty else "Belum Lunas"
-        laporan.append({"Nama": warga, "Bulan": str(bulan_terakhir), "Status": status})
-    df_laporan = pd.DataFrame(laporan)
-    st.dataframe(df_laporan, use_container_width=True)
-
-# --- Export Excel ---
-if menu == "Export Excel" and role == "admin":
-    st.title("⬇️ Export Data ke Excel")
-    tab1, tab2 = st.tabs(["Iuran", "Pengeluaran"])
-    with tab1:
-        tanggal_export = datetime.now().strftime("%Y%m%d")
-        st.download_button("Download Iuran", df_iuran.to_csv(index=False), file_name=f"iuran_{tanggal_export}.csv", mime="text/csv")
-    with tab2:
-        st.download_button("Download Pengeluaran", df_keluar.to_csv(index=False), file_name=f"pengeluaran_{tanggal_export}.csv", mime="text/csv")
