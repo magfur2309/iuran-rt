@@ -9,15 +9,31 @@ FILE_WARGA = "warga.csv"
 FILE_IURAN = "iuran_masuk.csv"
 FILE_PENGELUARAN = "pengeluaran.csv"
 
-# --- Fungsi Load & Save CSV ---
+# --- Fungsi Backup, Load & Save CSV ---
+def backup_csv(file_path):
+    if os.path.exists(file_path):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = f"backup/{os.path.basename(file_path).replace('.csv', '')}_{timestamp}.csv"
+        os.makedirs("backup", exist_ok=True)
+        df_backup = pd.read_csv(file_path)
+        df_backup.to_csv(backup_path, index=False)
+
+def save_csv(df, file_path):
+    backup_csv(file_path)
+    df.to_csv(file_path, index=False)
+
 def load_csv(file_path, columns):
     if os.path.exists(file_path):
         return pd.read_csv(file_path)
     else:
         return pd.DataFrame(columns=columns)
 
-def save_csv(df, file_path):
-    df.to_csv(file_path, index=False)
+def delete_row(df, row_id):
+    return df[df["ID"] != row_id].reset_index(drop=True)
+
+def edit_row(df, row_id, new_data):
+    df.loc[df["ID"] == row_id, list(new_data.keys())] = list(new_data.values())
+    return df
 
 # --- Load Data ---
 df_warga = load_csv(FILE_WARGA, ["ID", "Nama"])
@@ -38,21 +54,11 @@ if 'login' not in st.session_state:
 
 if not st.session_state.login:
     st.set_page_config(page_title="Iuran Kas RT", layout="wide")
-
-    # --- CSS Custom untuk Login ---
     st.markdown("""
         <style>
-        body {
-            background-color: #111827;
-        }
-        .stApp {
-            background-color: #111827;
-            color: white;
-        }
-        .login-container {
-            margin-top: 100px;
-            text-align: center;
-        }
+        body { background-color: #111827; }
+        .stApp { background-color: #111827; color: white; }
+        .login-container { margin-top: 100px; text-align: center; }
         .login-box {
             background-color: #1f2937;
             padding: 40px;
@@ -66,11 +72,10 @@ if not st.session_state.login:
         <div class="login-container">
             <div class="login-box">
                 <h1 style='color:white;'><span style='font-size: 1.5em;'>🔐</span> Login Iuran Kas RT</h1>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
-
     login_clicked = st.button("Login")
 
     if login_clicked:
@@ -85,7 +90,7 @@ if not st.session_state.login:
     st.markdown("</div></div>", unsafe_allow_html=True)
     st.stop()
 
-# --- Sidebar Styling & Menu ---
+# --- Sidebar ---
 with st.sidebar:
     st.markdown(
         f"""
@@ -115,14 +120,11 @@ with st.sidebar:
 # --- Dashboard ---
 if menu == "Dashboard":
     st.title("📊 Dashboard Keuangan RT")
-
     df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"])
     df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"])
-
     total_masuk = df_iuran["Jumlah"].sum()
     total_keluar = df_keluar["Jumlah"].sum()
     saldo = total_masuk - total_keluar
-
     col1, col2, col3 = st.columns(3)
     col1.metric("💰 Pemasukan", f"Rp {total_masuk:,.0f}")
     col2.metric("💸 Pengeluaran", f"Rp {total_keluar:,.0f}")
@@ -130,7 +132,6 @@ if menu == "Dashboard":
 
     df_iuran['Bulan'] = df_iuran['Tanggal'].dt.to_period("M").astype(str)
     df_keluar['Bulan'] = df_keluar['Tanggal'].dt.to_period("M").astype(str)
-
     masuk_bulanan = df_iuran.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pemasukan")
     keluar_bulanan = df_keluar.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pengeluaran")
     df_grafik = pd.merge(masuk_bulanan, keluar_bulanan, on="Bulan", how="outer").fillna(0).melt(
@@ -151,23 +152,10 @@ if menu == "Tambah Iuran" and role == "admin":
     nama = st.selectbox("Nama Warga", df_warga["Nama"])
     tanggal = st.date_input("Tanggal", datetime.today())
     kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
-
-    if kategori == "Iuran Pokok":
-        jumlah = 35000
-    elif kategori == "Iuran Kas Gang":
-        jumlah = 15000
-    else:
-        jumlah = 50000
-
+    jumlah = 35000 if kategori == "Iuran Pokok" else 15000 if kategori == "Iuran Kas Gang" else 50000
     if st.button("Simpan Iuran"):
-        new_id = len(df_iuran) + 1
-        new_row = {
-            "ID": new_id,
-            "Nama": nama,
-            "Tanggal": tanggal,
-            "Jumlah": jumlah,
-            "Kategori": kategori
-        }
+        new_id = df_iuran["ID"].max() + 1 if not df_iuran.empty else 1
+        new_row = {"ID": new_id, "Nama": nama, "Tanggal": tanggal, "Jumlah": jumlah, "Kategori": kategori}
         df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
         save_csv(df_iuran, FILE_IURAN)
         st.success("✅ Data iuran berhasil disimpan!")
@@ -175,6 +163,24 @@ if menu == "Tambah Iuran" and role == "admin":
 # --- Lihat Iuran ---
 if menu == "Lihat Iuran" and role == "admin":
     st.title("📂 Data Iuran Masuk")
+    if not df_iuran.empty:
+        selected_id = st.selectbox("Pilih ID untuk Edit/Hapus", df_iuran["ID"])
+        selected_data = df_iuran[df_iuran["ID"] == selected_id].iloc[0]
+        nama_edit = st.selectbox("Nama", df_warga["Nama"], index=df_warga[df_warga["Nama"] == selected_data["Nama"]].index[0])
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(selected_data["Tanggal"]))
+        kategori_edit = st.selectbox("Kategori", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"], index=["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"].index(selected_data["Kategori"]))
+        jumlah_edit = 35000 if kategori_edit == "Iuran Pokok" else 15000 if kategori_edit == "Iuran Kas Gang" else 50000
+        col1, col2 = st.columns(2)
+        if col1.button("💾 Simpan Perubahan"):
+            df_iuran = edit_row(df_iuran, selected_id, {"Nama": nama_edit, "Tanggal": tanggal_edit, "Kategori": kategori_edit, "Jumlah": jumlah_edit})
+            save_csv(df_iuran, FILE_IURAN)
+            st.success("✅ Data berhasil diperbarui!")
+            st.rerun()
+        if col2.button("🗑️ Hapus Data"):
+            df_iuran = delete_row(df_iuran, selected_id)
+            save_csv(df_iuran, FILE_IURAN)
+            st.warning("⚠️ Data berhasil dihapus!")
+            st.rerun()
     st.dataframe(df_iuran.sort_values("Tanggal", ascending=False), use_container_width=True)
 
 # --- Tambah Pengeluaran ---
@@ -183,38 +189,49 @@ if menu == "Tambah Pengeluaran" and role == "admin":
     tanggal = st.date_input("Tanggal", datetime.today())
     jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000)
     deskripsi = st.text_input("Deskripsi")
-
     if st.button("Simpan Pengeluaran"):
-        new_id = len(df_keluar) + 1
-        new_row = {
-            "ID": new_id,
-            "Tanggal": tanggal,
-            "Jumlah": jumlah,
-            "Deskripsi": deskripsi
-        }
-        df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
-        save_csv(df_keluar, FILE_PENGELUARAN)
-        st.success("✅ Data pengeluaran berhasil disimpan!")
+        if not deskripsi.strip():
+            st.warning("⚠️ Deskripsi tidak boleh kosong!")
+        else:
+            new_id = df_keluar["ID"].max() + 1 if not df_keluar.empty else 1
+            new_row = {"ID": new_id, "Tanggal": tanggal, "Jumlah": jumlah, "Deskripsi": deskripsi}
+            df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
+            save_csv(df_keluar, FILE_PENGELUARAN)
+            st.success("✅ Data pengeluaran berhasil disimpan!")
 
 # --- Lihat Pengeluaran ---
 if menu == "Lihat Pengeluaran" and role == "admin":
     st.title("📁 Data Pengeluaran")
+    if not df_keluar.empty:
+        selected_id = st.selectbox("Pilih ID untuk Edit/Hapus", df_keluar["ID"])
+        selected_data = df_keluar[df_keluar["ID"] == selected_id].iloc[0]
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(selected_data["Tanggal"]))
+        jumlah_edit = st.number_input("Jumlah (Rp)", value=int(selected_data["Jumlah"]), step=1000)
+        deskripsi_edit = st.text_input("Deskripsi", selected_data["Deskripsi"])
+        col1, col2 = st.columns(2)
+        if col1.button("💾 Simpan Perubahan"):
+            df_keluar = edit_row(df_keluar, selected_id, {"Tanggal": tanggal_edit, "Jumlah": jumlah_edit, "Deskripsi": deskripsi_edit})
+            save_csv(df_keluar, FILE_PENGELUARAN)
+            st.success("✅ Data berhasil diperbarui!")
+            st.rerun()
+        if col2.button("🗑️ Hapus Data"):
+            df_keluar = delete_row(df_keluar, selected_id)
+            save_csv(df_keluar, FILE_PENGELUARAN)
+            st.warning("⚠️ Data berhasil dihapus!")
+            st.rerun()
     st.dataframe(df_keluar.sort_values("Tanggal", ascending=False), use_container_width=True)
 
 # --- Laporan Status Iuran ---
 if menu == "Laporan Status Iuran":
     st.title("📝 Laporan Status Iuran")
-
     df_iuran["Bulan"] = pd.to_datetime(df_iuran["Tanggal"]).dt.to_period("M")
     bulan_terakhir = df_iuran["Bulan"].max()
-
     laporan = []
     for _, row in df_warga.iterrows():
         warga = row["Nama"]
         bayar = df_iuran[(df_iuran["Nama"] == warga) & (df_iuran["Bulan"] == bulan_terakhir)]
         status = "Lunas" if not bayar.empty else "Belum Lunas"
         laporan.append({"Nama": warga, "Bulan": str(bulan_terakhir), "Status": status})
-
     df_laporan = pd.DataFrame(laporan)
     st.dataframe(df_laporan, use_container_width=True)
 
@@ -223,6 +240,7 @@ if menu == "Export Excel" and role == "admin":
     st.title("⬇️ Export Data ke Excel")
     tab1, tab2 = st.tabs(["Iuran", "Pengeluaran"])
     with tab1:
-        st.download_button("Download Iuran", df_iuran.to_csv(index=False), "iuran.csv", "text/csv")
+        tanggal_export = datetime.now().strftime("%Y%m%d")
+        st.download_button("Download Iuran", df_iuran.to_csv(index=False), file_name=f"iuran_{tanggal_export}.csv", mime="text/csv")
     with tab2:
-        st.download_button("Download Pengeluaran", df_keluar.to_csv(index=False), "pengeluaran.csv", "text/csv")
+        st.download_button("Download Pengeluaran", df_keluar.to_csv(index=False), file_name=f"pengeluaran_{tanggal_export}.csv", mime="text/csv")
