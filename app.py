@@ -179,7 +179,7 @@ with st.sidebar:
         st.session_state.role = ''
         st.rerun()
 # --- Tambah Iuran ---
-else if menu == "Tambah Iuran" and role == "admin":
+if menu == "Tambah Iuran" and role == "admin":
     st.title("➕ Tambah Iuran")
     nama = st.selectbox("Nama Warga", df_warga["Nama"])
     tanggal = st.date_input("Tanggal", datetime.today())
@@ -225,7 +225,7 @@ if menu == "Tambah Pengeluaran" and role == "admin":
 
 
 # --- Lihat Iuran ---
-if menu == "Lihat Iuran" and role == "admin":
+elif menu == "Lihat Iuran" and role == "admin":
     st.title("📂 Data Iuran Masuk")
     df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
     bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_iuran["Tanggal"].dt.strftime("%Y-%m").dropna().unique(), reverse=True))
@@ -264,36 +264,6 @@ if menu == "Lihat Iuran" and role == "admin":
             df_iuran = df_iuran[df_iuran["ID"] != delete_id]
             save_csv(df_iuran, FILE_IURAN)
             st.success("🗑️ Data berhasil dihapus!")
-
-elif menu == "Tambah Iuran" and role == "admin":
-    st.title("➕ Tambah Iuran")
-    nama = st.selectbox("Nama Warga", df_warga["Nama"])
-    tanggal = st.date_input("Tanggal", datetime.today())
-    kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang", "Lain-lain"])
-
-    if kategori == "Iuran Pokok":
-        jumlah_default = 35000
-    elif kategori == "Iuran Kas Gang":
-        jumlah_default = 15000
-    elif kategori == "Iuran Pokok+Kas Gang":
-        jumlah_default = 50000
-    else:
-        jumlah_default = 0
-
-    jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000, value=jumlah_default)
-
-    if st.button("Simpan Iuran"):
-        new_id = df_iuran["ID"].max() + 1 if not df_iuran.empty else 1
-        new_row = {
-            "ID": new_id,
-            "Nama": nama,
-            "Tanggal": tanggal,
-            "Jumlah": jumlah,
-            "Kategori": kategori
-        }
-        df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
-        save_csv(df_iuran, FILE_IURAN)
-        st.success("✅ Data iuran berhasil disimpan!")
 
 elif menu == "Lihat Pengeluaran" and role == "admin":
     st.title("📁 Data Pengeluaran")
@@ -356,4 +326,3 @@ elif menu == "Dashboard":
     ).properties(width="container", title="📈 Grafik Kas Per Bulan")
 
     st.altair_chart(chart, use_container_width=True)
-
