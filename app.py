@@ -102,16 +102,78 @@ with st.sidebar:
     )
     st.markdown("---")
     role = st.session_state.role
-    if role == 'admin':
-        menu = st.radio("📋 Menu Utama", [
-            "Dashboard", "Tambah Iuran", "Lihat Iuran", 
-            "Tambah Pengeluaran", "Lihat Pengeluaran",
-            "Laporan Status Iuran", "Export Excel"
-        ])
-    else:
-        menu = st.radio("📋 Menu Warga", ["Dashboard", "Laporan Status Iuran"])
+
+    menu_options = (
+        [
+            ("Dashboard", "📊 Dashboard"),
+            ("Tambah Iuran", "➕ Tambah Iuran"),
+            ("Lihat Iuran", "📂 Lihat Iuran"),
+            ("Tambah Pengeluaran", "➖ Tambah Pengeluaran"),
+            ("Lihat Pengeluaran", "📁 Lihat Pengeluaran"),
+            ("Laporan Status Iuran", "📝 Status Iuran"),
+            ("Export Excel", "⬇️ Export Excel")
+        ] if role == "admin" else [
+            ("Dashboard", "📊 Dashboard"),
+            ("Laporan Status Iuran", "📝 Status Iuran")
+        ]
+    )
+
+    st.markdown("""
+        <style>
+        .menu-button {
+            background-color: #1f2937;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 5px;
+        }
+        .menu-button:hover {
+            background-color: #374151;
+        }
+        .menu-selected {
+            background-color: #f43f5e !important;
+            color: white !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    menu_labels = [label for _, label in menu_options]
+    menu_keys = [key for key, _ in menu_options]
+
+    for idx, label in enumerate(menu_labels):
+        button_key = f"menu_{idx}"
+        if st.button(label, key=button_key):
+            st.session_state["selected_menu"] = menu_keys[idx]
+
+    if "selected_menu" not in st.session_state:
+        st.session_state["selected_menu"] = menu_keys[0]
+
+    menu = st.session_state["selected_menu"]
+
     st.markdown("---")
-    if st.button("🚪 Logout"):
+    st.markdown("""
+        <style>
+        .stButton>button {
+            background-color: #1f2937;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stButton>button:hover {
+            background-color: #374151;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    if st.button("📕 Logout"):
         st.session_state.login = False
         st.session_state.username = ''
         st.session_state.role = ''
