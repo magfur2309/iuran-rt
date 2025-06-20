@@ -227,9 +227,9 @@ if menu == "Tambah Pengeluaran" and role == "admin":
 # --- Lihat Iuran ---
 elif menu == "Lihat Iuran" and role == "admin":
     st.title("📂 Data Iuran Masuk")
-    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"])
-    bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_iuran["Tanggal"].dt.strftime("%Y-%m").unique(), reverse=True))
-    nama_filter = st.selectbox("Filter Nama", options=["Semua"] + df_iuran["Nama"].unique().tolist())
+    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
+    bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_iuran["Tanggal"].dt.strftime("%Y-%m").dropna().unique(), reverse=True))
+    nama_filter = st.selectbox("Filter Nama", options=["Semua"] + df_iuran["Nama"].dropna().unique().tolist())
 
     df_filtered = df_iuran.copy()
     if bulan_filter != "Semua":
@@ -243,14 +243,14 @@ elif menu == "Lihat Iuran" and role == "admin":
     if edit_id in df_iuran["ID"].values:
         st.markdown("**Edit Data**")
         row = df_iuran[df_iuran["ID"] == edit_id].iloc[0]
-        nama_list = df_warga["Nama"].tolist()
+        nama_list = df_warga["Nama"].dropna().tolist()
         index_nama = nama_list.index(row["Nama"]) if row["Nama"] in nama_list else 0
         nama_edit = st.selectbox("Nama", nama_list, index=index_nama)
         tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce').date())
-        kategori_list = ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"]
-        kategori_edit = st.selectbox("Kategori", kategori_list, index=kategori_list.index(row["Kategori"]))
-
-        jumlah_edit = 35000 if kategori_edit == "Iuran Pokok" else 15000 if kategori_edit == "Iuran Kas Gang" else 50000
+        kategori_list = ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang", "Lain-lain"]
+        index_kategori = kategori_list.index(row["Kategori"]) if row["Kategori"] in kategori_list else 0
+        kategori_edit = st.selectbox("Kategori", kategori_list, index=index_kategori)
+        jumlah_edit = st.number_input("Jumlah", min_value=0, value=int(row["Jumlah"]), step=1000)
 
         if st.button("Simpan Perubahan"):
             df_iuran.loc[df_iuran["ID"] == edit_id, ["Nama", "Tanggal", "Jumlah", "Kategori"]] = [
@@ -267,8 +267,8 @@ elif menu == "Lihat Iuran" and role == "admin":
 
 elif menu == "Lihat Pengeluaran" and role == "admin":
     st.title("📁 Data Pengeluaran")
-    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"])
-    bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_keluar["Tanggal"].dt.strftime("%Y-%m").unique(), reverse=True))
+    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"], errors='coerce')
+    bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_keluar["Tanggal"].dt.strftime("%Y-%m").dropna().unique(), reverse=True))
 
     df_filtered = df_keluar.copy()
     if bulan_filter != "Semua":
@@ -298,8 +298,8 @@ elif menu == "Lihat Pengeluaran" and role == "admin":
 
 elif menu == "Dashboard":
     st.title("📊 Dashboard Keuangan RT")
-    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"])
-    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"])
+    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
+    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"], errors='coerce')
 
     total_masuk = df_iuran["Jumlah"].sum()
     total_keluar = df_keluar["Jumlah"].sum()
