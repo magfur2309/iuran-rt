@@ -179,7 +179,7 @@ with st.sidebar:
         st.session_state.role = ''
         st.rerun()
 # --- Tambah Iuran ---
-if menu == "Tambah Iuran" and role == "admin":
+else if menu == "Tambah Iuran" and role == "admin":
     st.title("➕ Tambah Iuran")
     nama = st.selectbox("Nama Warga", df_warga["Nama"])
     tanggal = st.date_input("Tanggal", datetime.today())
