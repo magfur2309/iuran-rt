@@ -46,21 +46,57 @@ if 'login' not in st.session_state:
     st.session_state.role = ''
 
 if not st.session_state.login:
-    st.set_page_config(page_title="Iuran Kas RT", layout="wide")
-    st.markdown("""<style>body{background-color:#111827;}.stApp{color:white;}</style>""", unsafe_allow_html=True)
-    st.markdown("<div style='text-align:center; margin-top: 100px'><div style='background:#1f2937; padding:40px; border-radius:15px; max-width:400px; margin:auto;'><h1 style='color:white;'>🔐 Login Iuran Kas RT</h1>", unsafe_allow_html=True)
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
+    st.set_page_config(page_title="Iuran Kas RT", layout="centered")
+
+    st.markdown("""
+        <style>
+        body {
+            background-color: #0f172a;
+        }
+        .stApp {
+            background-color: #0f172a;
+            color: white;
+        }
+        .login-box {
+            background-color: #1e293b;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            margin: 5rem auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .login-title {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .login-title h1 {
+            font-size: 1.6rem;
+            color: white;
+        }
+        </style>
+        <div class="login-box">
+            <div class="login-title">
+                <h1>🔐 Login Iuran Kas RT</h1>
+            </div>
+    """, unsafe_allow_html=True)
+
+    username = st.text_input("👤 Username")
+    password = st.text_input("🔒 Password", type="password")
+    login_clicked = st.button("🔓 Login")
+
+    if login_clicked:
         if username in users and password == users[username]['password']:
             st.session_state.login = True
             st.session_state.username = username
             st.session_state.role = users[username]['role']
             st.rerun()
         else:
-            st.error("Username atau password salah.")
-    st.markdown("</div></div>", unsafe_allow_html=True)
+            st.error("❌ Username atau password salah.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
+
 
 # --- Sidebar ---
 with st.sidebar:
