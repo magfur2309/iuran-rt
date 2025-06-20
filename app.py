@@ -243,9 +243,9 @@ elif menu == "Lihat Iuran" and role == "admin":
     if edit_id in df_iuran["ID"].values:
         st.markdown("**Edit Data**")
         row = df_iuran[df_iuran["ID"] == edit_id].iloc[0]
-        index_nama = df_warga[df_warga["Nama"] == row["Nama"]].index
-        index_nama = index_nama[0] if not index_nama.empty else 0
-        nama_edit = st.selectbox("Nama", df_warga["Nama"], index=index_nama)
+        nama_list = df_warga["Nama"].tolist()
+        index_nama = nama_list.index(row["Nama"]) if row["Nama"] in nama_list else 0
+        nama_edit = st.selectbox("Nama", nama_list, index=index_nama)
         tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce').date())
         kategori_list = ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"]
         kategori_edit = st.selectbox("Kategori", kategori_list, index=kategori_list.index(row["Kategori"]))
