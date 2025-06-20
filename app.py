@@ -100,14 +100,26 @@ if not st.session_state.login:
 
 # --- Sidebar ---
 with st.sidebar:
+    st.markdown("""
+        <style>
+        section[data-testid="stSidebar"] .stRadio > div {
+            gap: 0.75rem !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.markdown(f"<div style='padding:10px; background:#1f2937; color:white; border-radius:10px;'>👤 <b>Login sebagai:</b><br>{st.session_state.username} ({st.session_state.role})</div>", unsafe_allow_html=True)
     st.markdown("---")
-    role = st.session_state.role
-    menu = st.radio("📋 Menu", [
-        "Dashboard", "Tambah Iuran", "Lihat Iuran", 
-        "Tambah Pengeluaran", "Lihat Pengeluaran",
-        "Laporan Status Iuran", "Export Excel"
-    ] if role == 'admin' else ["Dashboard", "Laporan Status Iuran"])
+
+    if st.session_state.role == 'admin':
+        menu = st.radio("📋 Menu", [
+            "Dashboard", "Tambah Iuran", "Lihat Iuran",
+            "Tambah Pengeluaran", "Lihat Pengeluaran",
+            "Laporan Status Iuran", "Export Excel"
+        ])
+    else:
+        menu = st.radio("📋 Menu", ["Dashboard", "Laporan Status Iuran"])
+
     st.markdown("---")
     if st.button("🚪 Logout"):
         st.session_state.login = False
