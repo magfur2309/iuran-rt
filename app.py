@@ -243,8 +243,12 @@ elif menu == "Lihat Iuran" and role == "admin":
     if edit_id in df_iuran["ID"].values:
         st.markdown("**Edit Data**")
         row = df_iuran[df_iuran["ID"] == edit_id].iloc[0]
-        nama_edit = st.selectbox("Nama", df_warga["Nama"], index=df_warga[df_warga["Nama"] == row["Nama"]].index[0])
-        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"]))
+        try:
+            index_nama = df_warga[df_warga["Nama"] == row["Nama"]].index[0]
+        except IndexError:
+            index_nama = 0
+        nama_edit = st.selectbox("Nama", df_warga["Nama"], index=index_nama)
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce'))
         kategori_edit = st.selectbox("Kategori", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"],
                                       index=["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"].index(row["Kategori"]))
 
@@ -283,7 +287,7 @@ elif menu == "Lihat Pengeluaran" and role == "admin":
     if edit_id in df_keluar["ID"].values:
         st.markdown("**Edit Pengeluaran**")
         row = df_keluar[df_keluar["ID"] == edit_id].iloc[0]
-        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"]))
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce'))
         jumlah_edit = st.number_input("Jumlah", value=int(row["Jumlah"]), step=1000)
         deskripsi_edit = st.text_input("Deskripsi", value=row["Deskripsi"])
         if st.button("Simpan Perubahan Pengeluaran"):
