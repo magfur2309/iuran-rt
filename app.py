@@ -223,11 +223,11 @@ elif menu == "Lihat Iuran" and role == "admin":
     edit_id = st.number_input("ID yang ingin diedit:", min_value=1, step=1)
     if edit_id in df_iuran["ID"].values:
         st.markdown("**Edit Data**")
-        nama_edit = st.selectbox("Nama", df_warga["Nama"], index=df_warga[df_warga["Nama"] == df_iuran.loc[df_iuran["ID"] == edit_id, "Nama"].values[0]].index[0])
-        tanggal_edit = st.date_input("Tanggal", df_iuran.loc[df_iuran["ID"] == edit_id, "Tanggal"].values[0])
+        row = df_iuran[df_iuran["ID"] == edit_id].iloc[0]
+        nama_edit = st.selectbox("Nama", df_warga["Nama"], index=df_warga[df_warga["Nama"] == row["Nama"]].index[0])
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"]))
         kategori_edit = st.selectbox("Kategori", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"],
-                                      index=["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"].index(
-                                          df_iuran.loc[df_iuran["ID"] == edit_id, "Kategori"].values[0]))
+                                      index=["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"].index(row["Kategori"]))
 
         if kategori_edit == "Iuran Pokok":
             jumlah_edit = 35000
@@ -263,9 +263,10 @@ elif menu == "Lihat Pengeluaran" and role == "admin":
     edit_id = st.number_input("ID yang ingin diedit:", min_value=1, step=1, key="edit_pengeluaran")
     if edit_id in df_keluar["ID"].values:
         st.markdown("**Edit Pengeluaran**")
-        tanggal_edit = st.date_input("Tanggal", df_keluar.loc[df_keluar["ID"] == edit_id, "Tanggal"].values[0])
-        jumlah_edit = st.number_input("Jumlah", value=int(df_keluar.loc[df_keluar["ID"] == edit_id, "Jumlah"].values[0]), step=1000)
-        deskripsi_edit = st.text_input("Deskripsi", value=df_keluar.loc[df_keluar["ID"] == edit_id, "Deskripsi"].values[0])
+        row = df_keluar[df_keluar["ID"] == edit_id].iloc[0]
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"]))
+        jumlah_edit = st.number_input("Jumlah", value=int(row["Jumlah"]), step=1000)
+        deskripsi_edit = st.text_input("Deskripsi", value=row["Deskripsi"])
         if st.button("Simpan Perubahan Pengeluaran"):
             df_keluar.loc[df_keluar["ID"] == edit_id, ["Tanggal", "Jumlah", "Deskripsi"]] = [
                 tanggal_edit, jumlah_edit, deskripsi_edit]
