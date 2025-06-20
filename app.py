@@ -243,21 +243,14 @@ elif menu == "Lihat Iuran" and role == "admin":
     if edit_id in df_iuran["ID"].values:
         st.markdown("**Edit Data**")
         row = df_iuran[df_iuran["ID"] == edit_id].iloc[0]
-        try:
-            index_nama = df_warga[df_warga["Nama"] == row["Nama"]].index[0]
-        except IndexError:
-            index_nama = 0
+        index_nama = df_warga[df_warga["Nama"] == row["Nama"]].index
+        index_nama = index_nama[0] if not index_nama.empty else 0
         nama_edit = st.selectbox("Nama", df_warga["Nama"], index=index_nama)
-        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce'))
-        kategori_edit = st.selectbox("Kategori", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"],
-                                      index=["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"].index(row["Kategori"]))
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce').date())
+        kategori_list = ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"]
+        kategori_edit = st.selectbox("Kategori", kategori_list, index=kategori_list.index(row["Kategori"]))
 
-        if kategori_edit == "Iuran Pokok":
-            jumlah_edit = 35000
-        elif kategori_edit == "Iuran Kas Gang":
-            jumlah_edit = 15000
-        else:
-            jumlah_edit = 50000
+        jumlah_edit = 35000 if kategori_edit == "Iuran Pokok" else 15000 if kategori_edit == "Iuran Kas Gang" else 50000
 
         if st.button("Simpan Perubahan"):
             df_iuran.loc[df_iuran["ID"] == edit_id, ["Nama", "Tanggal", "Jumlah", "Kategori"]] = [
@@ -287,7 +280,7 @@ elif menu == "Lihat Pengeluaran" and role == "admin":
     if edit_id in df_keluar["ID"].values:
         st.markdown("**Edit Pengeluaran**")
         row = df_keluar[df_keluar["ID"] == edit_id].iloc[0]
-        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce'))
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce').date())
         jumlah_edit = st.number_input("Jumlah", value=int(row["Jumlah"]), step=1000)
         deskripsi_edit = st.text_input("Deskripsi", value=row["Deskripsi"])
         if st.button("Simpan Perubahan Pengeluaran"):
