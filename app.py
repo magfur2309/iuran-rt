@@ -204,6 +204,25 @@ if menu == "Tambah Iuran" and role == "admin":
         df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
         save_csv(df_iuran, FILE_IURAN)
         st.success("✅ Data iuran berhasil disimpan!")
+# --- Tambah Pengeluaran ---
+if menu == "Tambah Pengeluaran" and role == "admin":
+    st.title("➖ Tambah Pengeluaran")
+    tanggal = st.date_input("Tanggal", datetime.today())
+    jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000)
+    deskripsi = st.text_input("Deskripsi")
+
+    if st.button("Simpan Pengeluaran"):
+        new_id = len(df_keluar) + 1
+        new_row = {
+            "ID": new_id,
+            "Tanggal": tanggal,
+            "Jumlah": jumlah,
+            "Deskripsi": deskripsi
+        }
+        df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
+        save_csv(df_keluar, FILE_PENGELUARAN)
+        st.success("✅ Data pengeluaran berhasil disimpan!")
+
 
 # --- Lihat Iuran ---
 elif menu == "Lihat Iuran" and role == "admin":
