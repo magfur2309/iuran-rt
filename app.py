@@ -179,7 +179,53 @@ with st.sidebar:
         st.session_state.role = ''
         st.rerun()
 # --- Tambah Iuran ---
-elif menu == "Lihat Iuran" and role == "admin":
+if menu == "Tambah Iuran" and role == "admin":
+    st.title("➕ Tambah Iuran")
+    nama = st.selectbox("Nama Warga", df_warga["Nama"])
+    tanggal = st.date_input("Tanggal", datetime.today())
+    kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
+
+    if kategori == "Iuran Pokok":
+        jumlah = 35000
+    elif kategori == "Iuran Kas Gang":
+        jumlah = 15000
+    else:
+        jumlah = 50000
+
+    if st.button("Simpan Iuran"):
+        new_id = len(df_iuran) + 1
+        new_row = {
+            "ID": new_id,
+            "Nama": nama,
+            "Tanggal": tanggal,
+            "Jumlah": jumlah,
+            "Kategori": kategori
+        }
+        df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
+        save_csv(df_iuran, FILE_IURAN)
+        st.success("✅ Data iuran berhasil disimpan!")
+# --- Tambah Pengeluaran ---
+if menu == "Tambah Pengeluaran" and role == "admin":
+    st.title("➖ Tambah Pengeluaran")
+    tanggal = st.date_input("Tanggal", datetime.today())
+    jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000)
+    deskripsi = st.text_input("Deskripsi")
+
+    if st.button("Simpan Pengeluaran"):
+        new_id = len(df_keluar) + 1
+        new_row = {
+            "ID": new_id,
+            "Tanggal": tanggal,
+            "Jumlah": jumlah,
+            "Deskripsi": deskripsi
+        }
+        df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
+        save_csv(df_keluar, FILE_PENGELUARAN)
+        st.success("✅ Data pengeluaran berhasil disimpan!")
+
+
+# --- Lihat Iuran ---
+if menu == "Lihat Iuran" and role == "admin":
     st.title("📂 Data Iuran Masuk")
     df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
     bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_iuran["Tanggal"].dt.strftime("%Y-%m").dropna().unique(), reverse=True))
@@ -310,3 +356,4 @@ elif menu == "Dashboard":
     ).properties(width="container", title="📈 Grafik Kas Per Bulan")
 
     st.altair_chart(chart, use_container_width=True)
+
