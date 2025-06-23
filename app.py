@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import altair as alt
 from datetime import datetime
 from google_sheets import connect_to_gsheet, load_sheet, save_sheet
 
@@ -14,7 +15,13 @@ df_warga = load_sheet(sheet_warga)
 df_iuran = load_sheet(sheet_iuran)
 df_keluar = load_sheet(sheet_pengeluaran)
 
-# --- Sidebar login info ---
+# --- Login ---
+users = {
+    "admin": {"password": "admin123", "role": "admin"},
+    "warga1": {"password": "warga123", "role": "warga"},
+    "warga2": {"password": "warga123", "role": "warga"},
+}
+
 if 'login' not in st.session_state:
     st.session_state.login = False
     st.session_state.username = ''
@@ -42,12 +49,6 @@ if not st.session_state.login:
                 <h1 style='color:white;'><span style='font-size: 1.5em;'>🔐</span> Login Iuran Kas RT</h1>
     """, unsafe_allow_html=True)
 
-    users = {
-        "admin": {"password": "admin123", "role": "admin"},
-        "warga1": {"password": "warga123", "role": "warga"},
-        "warga2": {"password": "warga123", "role": "warga"},
-    }
-
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     login_clicked = st.button("Login")
@@ -66,23 +67,6 @@ if not st.session_state.login:
 
 role = st.session_state.role
 menu = st.sidebar.selectbox("Menu", ["Dashboard", "Tambah Iuran", "Tambah Pengeluaran", "Laporan Status Iuran"] if role == "admin" else ["Dashboard", "Laporan Status Iuran"])
-
-if menu == "Laporan Status Iuran":
-    st.title("📝 Laporan Status Iuran")
-    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
-    df_iuran["Bulan"] = df_iuran["Tanggal"].dt.to_period("M")
-
-    bulan_terakhir = df_iuran["Bulan"].max()
-    laporan = []
-
-    for _, row in df_warga.iterrows():
-        warga = row["Nama"]
-        pembayaran = df_iuran[(df_iuran["Nama"] == warga) & (df_iuran["Bulan"] == bulan_terakhir)]
-        status = "Lunas" if not pembayaran.empty else "Belum Lunas"
-        laporan.append({"Nama": warga, "Bulan": str(bulan_terakhir), "Status": status})
-
-    df_laporan = pd.DataFrame(laporan)
-    st.dataframe(df_laporan, use_container_width=True)
 
 if menu == "Tambah Iuran" and role == "admin":
     st.title("➕ Tambah Iuran")
@@ -131,3 +115,51 @@ if menu == "Tambah Pengeluaran" and role == "admin":
         df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
         save_sheet(sheet_pengeluaran, df_keluar)
         st.success("✅ Data pengeluaran berhasil disimpan!")
+
+if menu == "Laporan Status Iuran":
+    st.title("📝 Laporan Status Iuran")
+    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
+    df_iuran["Bulan"] = df_iuran["Tanggal"].dt.to_period("M")
+
+    bulan_terakhir = df_iuran["Bulan"].max()
+    laporan = []
+
+    for _, row in df_warga.iterrows():
+        warga = row["Nama"]
+        pembayaran = df_iuran[(df_iuran["Nama"] == warga) & (df_iuran["Bulan"] == bulan_terakhir)]
+        status = "Lunas" if not pembayaran.empty else "Belum Lunas"
+        laporan.append({"Nama": warga, "Bulan": str(bulan_terakhir), "Status": status})
+
+    df_laporan = pd.DataFrame(laporan)
+    st.dataframe(df_laporan, use_container_width=True)
+
+if menu == "Dashboard":
+    st.title("📊 Dashboard Keuangan RT")
+    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
+    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"], errors='coerce')
+
+    total_masuk = df_iuran["Jumlah"].sum()
+    total_keluar = df_keluar["Jumlah"].sum()
+    saldo = total_masuk - total_keluar
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("💰 Pemasukan", f"Rp {total_masuk:,.0f}")
+    col2.metric("💸 Pengeluaran", f"Rp {total_keluar:,.0f}")
+    col3.metric("💼 Saldo", f"Rp {saldo:,.0f}")
+
+    df_iuran['Bulan'] = df_iuran['Tanggal'].dt.to_period("M").astype(str)
+    df_keluar['Bulan'] = df_keluar['Tanggal'].dt.to_period("M").astype(str)
+
+    masuk_bulanan = df_iuran.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pemasukan")
+    keluar_bulanan = df_keluar.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pengeluaran")
+    df_grafik = pd.merge(masuk_bulanan, keluar_bulanan, on="Bulan", how="outer").fillna(0).melt(
+        id_vars=["Bulan"], var_name="Tipe", value_name="Jumlah")
+
+    chart = alt.Chart(df_grafik).mark_bar().encode(
+        x=alt.X("Bulan:O", title="Bulan"),
+        y=alt.Y("Jumlah:Q", title="Jumlah (Rp)"),
+        color=alt.Color("Tipe:N", scale=alt.Scale(range=["#4CAF50", "#F44336"])),
+        tooltip=["Bulan", "Tipe", "Jumlah"]
+    ).properties(width="container", title="📈 Grafik Kas Per Bulan")
+
+    st.altair_chart(chart, use_container_width=True)
