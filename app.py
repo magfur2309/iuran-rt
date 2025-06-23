@@ -2,132 +2,327 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime
-from google_sheets import connect_to_gsheet, load_sheet, save_sheet
-import gspread
-import pandas as pd
-from oauth2client.service_account import ServiceAccountCredentials
-from google_sheets import connect_to_gsheet, load_sheet, save_sheet
+import os
 
-# buka spreadsheet berdasarkan ID
-sheet = connect_to_gsheet("11ZCpjZe3vsFG3Ye-c1kSsYHTk6Z_Ktc3Z6YczH4lHIk")
+# --- File Path CSV ---
+FILE_WARGA = "warga.csv"
+FILE_IURAN = "iuran_masuk.csv"
+FILE_PENGELUARAN = "pengeluaran.csv"
 
-# buka tiap worksheet
-sheet_warga = sheet.worksheet("Warga")
-sheet_iuran = sheet.worksheet("Iuran")
-sheet_pengeluaran = sheet.worksheet("Pengeluaran")
+# --- Fungsi Backup, Load & Save CSV ---
+def backup_csv(file_path):
+    if os.path.exists(file_path):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = f"backup/{os.path.basename(file_path).replace('.csv', '')}_{timestamp}.csv"
+        os.makedirs("backup", exist_ok=True)
+        df_backup = pd.read_csv(file_path)
+        df_backup.to_csv(backup_path, index=False)
 
-# load data ke DataFrame
-df_warga = load_sheet(sheet_warga)
-df_iuran = load_sheet(sheet_iuran)
-df_keluar = load_sheet(sheet_pengeluaran)
+def save_csv(df, file_path):
+    backup_csv(file_path)
+    df.to_csv(file_path, index=False)
 
-def connect_to_gsheet(spreadsheet_id):
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-    client = gspread.authorize(creds)
-    return client.open_by_key(spreadsheet_id)
+def load_csv(file_path, columns):
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    else:
+        return pd.DataFrame(columns=columns)
 
-def load_sheet(sheet):
-    records = sheet.get_all_records()
-    return pd.DataFrame(records)
+def delete_row(df, row_id):
+    return df[df["ID"] != row_id].reset_index(drop=True)
 
-def save_sheet(sheet, df):
-    sheet.clear()
-    if not df.empty:
-        df_str = df.astype(str)
-        sheet.update([df_str.columns.tolist()] + df_str.values.tolist())
+def edit_row(df, row_id, new_data):
+    df.loc[df["ID"] == row_id, list(new_data.keys())] = list(new_data.values())
+    return df
 
+# --- Load Data ---
+df_warga = load_csv(FILE_WARGA, ["ID", "Nama"])
+df_iuran = load_csv(FILE_IURAN, ["ID", "Nama", "Tanggal", "Jumlah", "Kategori"])
+df_keluar = load_csv(FILE_PENGELUARAN, ["ID", "Tanggal", "Jumlah", "Deskripsi"])
 
-# Login
+# --- Login ---
 users = {
     "admin": {"password": "admin123", "role": "admin"},
     "warga1": {"password": "warga123", "role": "warga"},
+    "warga2": {"password": "warga123", "role": "warga"},
 }
 
-if "login" not in st.session_state:
+if 'login' not in st.session_state:
     st.session_state.login = False
-    st.session_state.username = ""
-    st.session_state.role = ""
+    st.session_state.username = ''
+    st.session_state.role = ''
 
 if not st.session_state.login:
-    st.set_page_config("Iuran Kas RT", layout="wide")
+    st.set_page_config(page_title="Iuran Kas RT", layout="wide")
+    st.markdown("""
+        <style>
+        body { background-color: #111827; }
+        .stApp { background-color: #111827; color: white; }
+        .login-container { margin-top: 100px; text-align: center; }
+        .login-box {
+            background-color: #1f2937;
+            padding: 40px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 400px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        </style>
+        <div class="login-container">
+            <div class="login-box">
+                <h1 style='color:white;'><span style='font-size: 1.5em;'>🔐</span> Login Iuran Kas RT</h1>
+    """, unsafe_allow_html=True)
+
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if username in users and users[username]["password"] == password:
+    login_clicked = st.button("Login")
+
+    if login_clicked:
+        if username in users and password == users[username]['password']:
             st.session_state.login = True
             st.session_state.username = username
-            st.session_state.role = users[username]["role"]
+            st.session_state.role = users[username]['role']
             st.rerun()
         else:
             st.error("Username atau password salah.")
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
     st.stop()
 
-# Menu
-role = st.session_state.role
-menu = st.sidebar.selectbox("Menu", ["Dashboard", "Tambah Iuran", "Tambah Pengeluaran", "Laporan Status Iuran"] if role == "admin" else ["Dashboard", "Laporan Status Iuran"])
+# --- Sidebar ---
+with st.sidebar:
+    st.markdown(
+        f"""
+        <div style="padding: 10px; border-radius: 10px; background-color: #1f2937; color: white;">
+            👤 <b>Login sebagai:</b><br>{st.session_state.username} ({st.session_state.role})
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
+    role = st.session_state.role
 
-# Tambah Iuran
+    menu_options = (
+        [
+            ("Dashboard", "📊 Dashboard"),
+            ("Tambah Iuran", "➕ Tambah Iuran"),
+            ("Lihat Iuran", "📂 Lihat Iuran"),
+            ("Tambah Pengeluaran", "➖ Tambah Pengeluaran"),
+            ("Lihat Pengeluaran", "📁 Lihat Pengeluaran"),
+            ("Laporan Status Iuran", "📝 Status Iuran"),
+            ("Export Excel", "⬇️ Export Excel")
+        ] if role == "admin" else [
+            ("Dashboard", "📊 Dashboard"),
+            ("Laporan Status Iuran", "📝 Status Iuran")
+        ]
+    )
+
+    st.markdown("""
+        <style>
+        .menu-button {
+            background-color: #1f2937;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 5px;
+        }
+        .menu-button:hover {
+            background-color: #374151;
+        }
+        .menu-selected {
+            background-color: #f43f5e !important;
+            color: white !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    menu_labels = [label for _, label in menu_options]
+    menu_keys = [key for key, _ in menu_options]
+
+    for idx, label in enumerate(menu_labels):
+        button_key = f"menu_{idx}"
+        if st.button(label, key=button_key):
+            st.session_state["selected_menu"] = menu_keys[idx]
+
+    if "selected_menu" not in st.session_state:
+        st.session_state["selected_menu"] = menu_keys[0]
+
+    menu = st.session_state["selected_menu"]
+
+    st.markdown("---")
+    st.markdown("""
+        <style>
+        .stButton>button {
+            background-color: #1f2937;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stButton>button:hover {
+            background-color: #374151;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    if st.button("📕 Logout"):
+        st.session_state.login = False
+        st.session_state.username = ''
+        st.session_state.role = ''
+        st.rerun()
+# --- Tambah Iuran ---
 if menu == "Tambah Iuran" and role == "admin":
     st.title("➕ Tambah Iuran")
     nama = st.selectbox("Nama Warga", df_warga["Nama"])
     tanggal = st.date_input("Tanggal", datetime.today())
-    kategori = st.selectbox("Kategori", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang", "Lain-lain"])
-    jumlah = st.number_input("Jumlah", 0, step=1000, value={"Iuran Pokok":35000,"Iuran Kas Gang":15000,"Iuran Pokok+Kas Gang":50000}.get(kategori,0))
-    if st.button("Simpan Iuran"):
-        new_id = df_iuran["ID"].max()+1 if not df_iuran.empty else 1
-        new_row = {"ID": new_id, "Nama": nama, "Tanggal": tanggal.strftime("%Y-%m-%d"), "Jumlah": jumlah, "Kategori": kategori}
-        df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
-        save_sheet(sheet_iuran, df_iuran)
-        st.success("✅ Tersimpan")
+    kategori = st.selectbox("Kategori Iuran", ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang"])
 
-# Tambah Pengeluaran
+    if kategori == "Iuran Pokok":
+        jumlah = 35000
+    elif kategori == "Iuran Kas Gang":
+        jumlah = 15000
+    else:
+        jumlah = 50000
+
+    if st.button("Simpan Iuran"):
+        new_id = len(df_iuran) + 1
+        new_row = {
+            "ID": new_id,
+            "Nama": nama,
+            "Tanggal": tanggal,
+            "Jumlah": jumlah,
+            "Kategori": kategori
+        }
+        df_iuran = pd.concat([df_iuran, pd.DataFrame([new_row])], ignore_index=True)
+        save_csv(df_iuran, FILE_IURAN)
+        st.success("✅ Data iuran berhasil disimpan!")
+# --- Tambah Pengeluaran ---
 if menu == "Tambah Pengeluaran" and role == "admin":
     st.title("➖ Tambah Pengeluaran")
     tanggal = st.date_input("Tanggal", datetime.today())
-    jumlah = st.number_input("Jumlah (Rp)", 0, step=1000)
+    jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000)
     deskripsi = st.text_input("Deskripsi")
+
     if st.button("Simpan Pengeluaran"):
-        new_id = df_keluar["ID"].max()+1 if not df_keluar.empty else 1
-        new_row = {"ID": new_id, "Tanggal": tanggal.strftime("%Y-%m-%d"), "Jumlah": jumlah, "Deskripsi": deskripsi}
+        new_id = len(df_keluar) + 1
+        new_row = {
+            "ID": new_id,
+            "Tanggal": tanggal,
+            "Jumlah": jumlah,
+            "Deskripsi": deskripsi
+        }
         df_keluar = pd.concat([df_keluar, pd.DataFrame([new_row])], ignore_index=True)
-        save_sheet(sheet_pengeluaran, df_keluar)
-        st.success("✅ Tersimpan")
+        save_csv(df_keluar, FILE_PENGELUARAN)
+        st.success("✅ Data pengeluaran berhasil disimpan!")
 
-# Laporan Status
-if menu == "Laporan Status Iuran":
-    st.title("📝 Status Iuran")
-    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors="coerce")
-    df_iuran["Bulan"] = df_iuran["Tanggal"].dt.to_period("M")
-    bulan_terakhir = df_iuran["Bulan"].max()
-    laporan = []
-    for _, row in df_warga.iterrows():
-        status = "Lunas" if not df_iuran[(df_iuran["Nama"]==row["Nama"]) & (df_iuran["Bulan"]==bulan_terakhir)].empty else "Belum Lunas"
-        laporan.append({"Nama": row["Nama"], "Bulan": str(bulan_terakhir), "Status": status})
-    st.dataframe(pd.DataFrame(laporan), use_container_width=True)
 
-# Dashboard
-if menu == "Dashboard":
-    st.title("📊 Dashboard")
-    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors="coerce")
-    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"], errors="coerce")
+# --- Lihat Iuran ---
+elif menu == "Lihat Iuran" and role == "admin":
+    st.title("📂 Data Iuran Masuk")
+    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
+    bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_iuran["Tanggal"].dt.strftime("%Y-%m").dropna().unique(), reverse=True))
+    nama_filter = st.selectbox("Filter Nama", options=["Semua"] + df_iuran["Nama"].dropna().unique().tolist())
+
+    df_filtered = df_iuran.copy()
+    if bulan_filter != "Semua":
+        df_filtered = df_filtered[df_filtered["Tanggal"].dt.strftime("%Y-%m") == bulan_filter]
+    if nama_filter != "Semua":
+        df_filtered = df_filtered[df_filtered["Nama"] == nama_filter]
+
+    st.dataframe(df_filtered.sort_values("Tanggal", ascending=False), use_container_width=True)
+
+    edit_id = st.number_input("ID yang ingin diedit:", min_value=1, step=1)
+    if edit_id in df_iuran["ID"].values:
+        st.markdown("**Edit Data**")
+        row = df_iuran[df_iuran["ID"] == edit_id].iloc[0]
+        nama_list = df_warga["Nama"].dropna().tolist()
+        index_nama = nama_list.index(row["Nama"]) if row["Nama"] in nama_list else 0
+        nama_edit = st.selectbox("Nama", nama_list, index=index_nama)
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce').date())
+        kategori_list = ["Iuran Pokok", "Iuran Kas Gang", "Iuran Pokok+Kas Gang", "Lain-lain"]
+        index_kategori = kategori_list.index(row["Kategori"]) if row["Kategori"] in kategori_list else 0
+        kategori_edit = st.selectbox("Kategori", kategori_list, index=index_kategori)
+        jumlah_edit = st.number_input("Jumlah", min_value=0, value=int(row["Jumlah"]), step=1000)
+
+        if st.button("Simpan Perubahan"):
+            df_iuran.loc[df_iuran["ID"] == edit_id, ["Nama", "Tanggal", "Jumlah", "Kategori"]] = [
+                nama_edit, tanggal_edit, jumlah_edit, kategori_edit]
+            save_csv(df_iuran, FILE_IURAN)
+            st.success("✅ Data berhasil diperbarui!")
+
+    delete_id = st.number_input("ID yang ingin dihapus:", min_value=1, step=1, key="hapus_iuran")
+    if delete_id in df_iuran["ID"].values:
+        if st.button("Hapus Data"):
+            df_iuran = df_iuran[df_iuran["ID"] != delete_id]
+            save_csv(df_iuran, FILE_IURAN)
+            st.success("🗑️ Data berhasil dihapus!")
+
+elif menu == "Lihat Pengeluaran" and role == "admin":
+    st.title("📁 Data Pengeluaran")
+    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"], errors='coerce')
+    bulan_filter = st.selectbox("Filter Bulan", options=["Semua"] + sorted(df_keluar["Tanggal"].dt.strftime("%Y-%m").dropna().unique(), reverse=True))
+
+    df_filtered = df_keluar.copy()
+    if bulan_filter != "Semua":
+        df_filtered = df_filtered[df_filtered["Tanggal"].dt.strftime("%Y-%m") == bulan_filter]
+
+    st.dataframe(df_filtered.sort_values("Tanggal", ascending=False), use_container_width=True)
+
+    edit_id = st.number_input("ID yang ingin diedit:", min_value=1, step=1, key="edit_pengeluaran")
+    if edit_id in df_keluar["ID"].values:
+        st.markdown("**Edit Pengeluaran**")
+        row = df_keluar[df_keluar["ID"] == edit_id].iloc[0]
+        tanggal_edit = st.date_input("Tanggal", pd.to_datetime(row["Tanggal"], errors='coerce').date())
+        jumlah_edit = st.number_input("Jumlah", value=int(row["Jumlah"]), step=1000)
+        deskripsi_edit = st.text_input("Deskripsi", value=row["Deskripsi"])
+        if st.button("Simpan Perubahan Pengeluaran"):
+            df_keluar.loc[df_keluar["ID"] == edit_id, ["Tanggal", "Jumlah", "Deskripsi"]] = [
+                tanggal_edit, jumlah_edit, deskripsi_edit]
+            save_csv(df_keluar, FILE_PENGELUARAN)
+            st.success("✅ Data pengeluaran berhasil diperbarui!")
+
+    delete_id = st.number_input("ID yang ingin dihapus:", min_value=1, step=1, key="hapus_pengeluaran")
+    if delete_id in df_keluar["ID"].values:
+        if st.button("Hapus Pengeluaran"):
+            df_keluar = df_keluar[df_keluar["ID"] != delete_id]
+            save_csv(df_keluar, FILE_PENGELUARAN)
+            st.success("🗑️ Data pengeluaran berhasil dihapus!")
+
+elif menu == "Dashboard":
+    st.title("📊 Dashboard Keuangan RT")
+    df_iuran["Tanggal"] = pd.to_datetime(df_iuran["Tanggal"], errors='coerce')
+    df_keluar["Tanggal"] = pd.to_datetime(df_keluar["Tanggal"], errors='coerce')
+
     total_masuk = df_iuran["Jumlah"].sum()
     total_keluar = df_keluar["Jumlah"].sum()
     saldo = total_masuk - total_keluar
-    st.metric("💰 Pemasukan", f"Rp {total_masuk:,.0f}")
-    st.metric("💸 Pengeluaran", f"Rp {total_keluar:,.0f}")
-    st.metric("💼 Saldo", f"Rp {saldo:,.0f}")
 
-    df_iuran["Bulan"] = df_iuran["Tanggal"].dt.to_period("M").astype(str)
-    df_keluar["Bulan"] = df_keluar["Tanggal"].dt.to_period("M").astype(str)
-    masuk = df_iuran.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pemasukan")
-    keluar = df_keluar.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pengeluaran")
-    df_grafik = pd.merge(masuk, keluar, on="Bulan", how="outer").fillna(0).melt("Bulan", var_name="Tipe", value_name="Jumlah")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("💰 Pemasukan", f"Rp {total_masuk:,.0f}")
+    col2.metric("💸 Pengeluaran", f"Rp {total_keluar:,.0f}")
+    col3.metric("💼 Saldo", f"Rp {saldo:,.0f}")
+
+    df_iuran['Bulan'] = df_iuran['Tanggal'].dt.to_period("M").astype(str)
+    df_keluar['Bulan'] = df_keluar['Tanggal'].dt.to_period("M").astype(str)
+
+    masuk_bulanan = df_iuran.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pemasukan")
+    keluar_bulanan = df_keluar.groupby("Bulan")["Jumlah"].sum().reset_index(name="Pengeluaran")
+    df_grafik = pd.merge(masuk_bulanan, keluar_bulanan, on="Bulan", how="outer").fillna(0).melt(
+        id_vars=["Bulan"], var_name="Tipe", value_name="Jumlah")
+
     chart = alt.Chart(df_grafik).mark_bar().encode(
-        x="Bulan", y="Jumlah", color="Tipe", tooltip=["Bulan", "Tipe", "Jumlah"]
-    ).properties(title="📈 Grafik Kas Per Bulan")
+        x=alt.X("Bulan:O", title="Bulan"),
+        y=alt.Y("Jumlah:Q", title="Jumlah (Rp)"),
+        color=alt.Color("Tipe:N", scale=alt.Scale(range=["#4CAF50", "#F44336"])),
+        tooltip=["Bulan", "Tipe", "Jumlah"]
+    ).properties(width="container", title="📈 Grafik Kas Per Bulan")
+
     st.altair_chart(chart, use_container_width=True)
