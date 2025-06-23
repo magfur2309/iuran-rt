@@ -5,7 +5,7 @@ from datetime import datetime
 from google_sheets import connect_to_gsheet, load_sheet, save_sheet
 
 # Koneksi ke Google Sheets
-sheet = connect_to_gsheet("11ZCpjZe3vsFG3Ye-c1kSsYHTk6Z_Ktc3Z6YczH4lHIk")
+client.open_by_key("11ZCpjZe3vsFG3Ye-c1kSsYHTk6Z_Ktc3Z6YczH4lHIk")
 sheet_warga = sheet.worksheet("Warga")
 sheet_iuran = sheet.worksheet("Iuran")
 sheet_pengeluaran = sheet.worksheet("Pengeluaran")
