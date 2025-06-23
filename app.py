@@ -3,17 +3,30 @@ import pandas as pd
 import altair as alt
 from datetime import datetime
 from google_sheets import connect_to_gsheet, load_sheet, save_sheet
+import gspread
+import pandas as pd
+from oauth2client.service_account import ServiceAccountCredentials
 
-# Koneksi ke Google Sheets
-client.open_by_key("11ZCpjZe3vsFG3Ye-c1kSsYHTk6Z_Ktc3Z6YczH4lHIk")
-sheet_warga = sheet.worksheet("Warga")
-sheet_iuran = sheet.worksheet("Iuran")
-sheet_pengeluaran = sheet.worksheet("Pengeluaran")
+def connect_to_gsheet(spreadsheet_id):
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    client = gspread.authorize(creds)
+    return client.open_by_key(spreadsheet_id)
 
-# Load data
-df_warga = load_sheet(sheet_warga)
-df_iuran = load_sheet(sheet_iuran)
-df_keluar = load_sheet(sheet_pengeluaran)
+def load_sheet(sheet):
+    records = sheet.get_all_records()
+    return pd.DataFrame(records)
+
+def save_sheet(sheet, df):
+    sheet.clear()
+    if not df.empty:
+        df_str = df.astype(str)
+        sheet.update([df_str.columns.tolist()] + df_str.values.tolist())
+
 
 # Login
 users = {
