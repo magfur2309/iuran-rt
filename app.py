@@ -6,6 +6,20 @@ from google_sheets import connect_to_gsheet, load_sheet, save_sheet
 import gspread
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
+from google_sheets import connect_to_gsheet, load_sheet, save_sheet
+
+# buka spreadsheet berdasarkan ID
+sheet = connect_to_gsheet("11ZCpjZe3vsFG3Ye-c1kSsYHTk6Z_Ktc3Z6YczH4lHIk")
+
+# buka tiap worksheet
+sheet_warga = sheet.worksheet("Warga")
+sheet_iuran = sheet.worksheet("Iuran")
+sheet_pengeluaran = sheet.worksheet("Pengeluaran")
+
+# load data ke DataFrame
+df_warga = load_sheet(sheet_warga)
+df_iuran = load_sheet(sheet_iuran)
+df_keluar = load_sheet(sheet_pengeluaran)
 
 def connect_to_gsheet(spreadsheet_id):
     scope = [
